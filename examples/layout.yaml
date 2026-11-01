@@ -1,0 +1,85 @@
+# Orbit Desktop layout - copy to ~/.config/orbit-desktop/layout.yaml and edit.
+# The desktop reloads automatically when you save this file (provider changes need a server restart).
+# Format: a safe YAML subset (see docs/configuration.md). Quote colours: "#46dcc8" (a bare # starts a comment).
+version: 1
+
+theme:
+  font: "-apple-system, 'SF Pro Display', 'Hiragino Sans', sans-serif"   # locally installed fonts only
+  mono_font: "ui-monospace, 'SF Mono', Menlo, monospace"
+  accent: auto            # auto = glow colours follow the album artwork; or a colour like "#46dcc8"
+  text_color: "#ffffff"
+  locale: auto            # auto = system language; e.g. ja-JP, en-GB
+  hour12: false
+
+background:
+  use: starfield          # plugin, or built-in: color | gradient | image | video
+  settings:
+    fps: 30
+    ufo: true
+  react:                  # signal -> reaction hook(s); replaces the plugin defaults when given
+    cpu: [twinkle, meteors, heat]
+    net: streamlines
+    audio.bass: glow
+
+# Built-in backgrounds need no code, e.g.:
+# background:
+#   use: gradient
+#   settings: { stops: ["#05060a", "#1b2a4a", "#3a1b4a"], angle: 160 }
+# background:
+#   use: video
+#   settings: { path: "~/Movies/Wallpapers/loop.mp4", fit: cover, opacity: 0.8 }
+
+widgets:
+  - use: weather
+    position: { anchor: top-left, x: 6vw, y: 6vh }
+
+  - use: system-stats
+    position: { anchor: top-right, x: 3.5vw, y: 6vh, width: 25vw }
+
+  - use: now-playing
+    position: { anchor: bottom-left, x: 6vw, y: 33vh }
+
+  - use: clock
+    position: { anchor: bottom-left, x: 6vw, y: 11vh }
+    settings:
+      show_date: true
+
+  - use: schedule
+    position: { anchor: bottom-right, x: 3.5vw, y: 9.4vh, width: 40vw }
+    settings:
+      hours_before: 2
+      hours_after: 10
+
+  # UNOFFICIAL - reads an undocumented field of ~/.claude.json. Needs providers.claude_usage.enabled: true.
+  # - use: claude-usage
+  #   position: { anchor: top-right, x: 3.5vw, y: 52vh, width: 25vw }
+
+providers:
+  location:
+    mode: fixed           # fixed | corelocation (needs CoreLocationCLI) | ip (sends your IP to ipinfo.io)
+    lat: 51.4779
+    lon: -0.0015
+    name: "GREENWICH · LONDON"
+  weather:
+    enabled: true         # Open-Meteo, no API key; requests carry only the rounded coordinates
+    refresh_minutes: 15
+  system:
+    interface: auto       # or en0 / en1 ...
+  ping:
+    interval_seconds: 10
+    targets: []           # e.g. - { name: NAS, host: 192.168.1.10, method: tcp, port: 22 }
+  speedtest:
+    enabled: false        # macOS networkQuality: uses real bandwidth
+    interval_minutes: 60
+    only_on_ac_power: true
+  now_playing:
+    enabled: true
+    players: [music, spotify]       # queried only while the app is already running
+    itunes_artwork_fallback: false  # true = look up missing artwork on the iTunes Search API (sends artist/album to Apple)
+    itunes_country: US
+  calendar:
+    file: "~/Library/Caches/orbit-desktop/calendar.json"     # written by host/helpers/calpulse
+  audio:
+    file: "~/Library/Caches/orbit-desktop/audiopulse.json"   # written by host/helpers/audiopulse
+  claude_usage:
+    enabled: false        # UNOFFICIAL, opt-in
