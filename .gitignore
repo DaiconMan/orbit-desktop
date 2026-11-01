@@ -6,3 +6,6 @@ __pycache__/
 *.swp
 # personal layouts belong in ~/.config/orbit-desktop, never in the repo
 layout.local.yaml
+# Swift host app build output
+/host/app/.build/
+/host/app/build/

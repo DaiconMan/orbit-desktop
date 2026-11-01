@@ -25,3 +25,12 @@ jobs:
         run: python3 tools/validate.py
       - name: Byte-compile host code
         run: python3 -m py_compile host/dev-server/*.py tools/validate.py
+
+  host-app:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build the Swift host app
+        run: host/app/build.sh
