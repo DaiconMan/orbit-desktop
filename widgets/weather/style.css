@@ -1,0 +1,12 @@
+.wx { font: 500 calc(1.35 * var(--vh)) var(--mono); }
+.wx .now { display: flex; align-items: baseline; gap: calc(1.2 * var(--vh)); font-family: var(--font); white-space: nowrap; }
+.wx .ic { font-size: calc(4.6 * var(--vh)); }
+.wx .t { font-size: calc(6 * var(--vh)); font-weight: 200; }
+.wx .d { font-size: calc(1.6 * var(--vh)); opacity: .65; margin-left: calc(.6 * var(--vh)); }
+.wx .place { opacity: .5; letter-spacing: .3em; font-size: calc(1.1 * var(--vh)); margin-bottom: calc(1 * var(--vh)); white-space: nowrap; }
+.wx .hours, .wx .days { display: flex; gap: calc(2.2 * var(--vh)); margin-top: calc(1.8 * var(--vh)); }
+.wx .cell { text-align: center; opacity: .85; white-space: nowrap; }
+.wx .cell b { display: block; font-size: calc(2.1 * var(--vh)); font-weight: 400; margin: calc(.5 * var(--vh)) 0; font-family: var(--font); }
+.wx .cell small { opacity: .5; }
+.wx .rain { color: rgb(120,180,255); }
+.wx .attr { margin-top: calc(1.4 * var(--vh)); font-size: calc(.95 * var(--vh)); opacity: .3; letter-spacing: .08em; }

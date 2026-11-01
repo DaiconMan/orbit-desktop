@@ -1,0 +1,34 @@
+id: weather
+name: Weather
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Current conditions, the next hours and the next days from Open-Meteo (fetched by the host; the widget has no network access)."
+needs: [weather]
+default_size:
+  width: auto
+  height: auto
+settings:
+  hour_step:
+    type: integer
+    default: 3
+    min: 1
+    max: 6
+    description: "Show every Nth hour of the 12-hour forecast"
+  days:
+    type: integer
+    default: 4
+    min: 0
+    max: 4
+  show_place:
+    type: boolean
+    default: true
+  show_rain:
+    type: boolean
+    default: true
+    description: "Precipitation probability under each cell"
+  show_attribution:
+    type: boolean
+    default: true
+    description: "Open-Meteo data is CC BY 4.0 - keep the credit visible unless you credit it elsewhere"

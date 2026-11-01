@@ -1,0 +1,25 @@
+id: claude-usage
+name: Claude Usage (unofficial)
+version: "0.1.0"
+author: DaiconMan
+license: MIT
+kind: widget
+unofficial: true
+description: "UNOFFICIAL. Remaining Claude Code usage (5-hour / weekly meters) read from an undocumented cache field in ~/.claude.json. Not affiliated with or endorsed by Anthropic; may break at any time. Requires providers.claude_usage.enabled: true."
+needs: [claudeUsage]
+default_size:
+  width: 25vw
+  height: auto
+settings:
+  warn_below:
+    type: number
+    default: 35
+    min: 0
+    max: 100
+    description: "Amber when the remaining % drops below this"
+  critical_below:
+    type: number
+    default: 15
+    min: 0
+    max: 100
+    description: "Red when the remaining % drops below this"

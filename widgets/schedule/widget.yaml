@@ -1,0 +1,37 @@
+id: schedule
+name: Schedule
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Gantt-style timeline of today's calendar events around the current time, with all-day chips and a NEXT countdown."
+needs: [calendar, time]
+default_size:
+  width: 40vw
+  height: auto
+settings:
+  title:
+    type: string
+    default: "SCHEDULE"
+  hours_before:
+    type: number
+    default: 2
+    min: 0
+    max: 12
+  hours_after:
+    type: number
+    default: 10
+    min: 1
+    max: 24
+  max_rows:
+    type: integer
+    default: 7
+    min: 1
+    max: 20
+  show_all_day:
+    type: boolean
+    default: true
+  backdrop:
+    type: boolean
+    default: true
+    description: "Soft dark backdrop behind the chart for legibility"

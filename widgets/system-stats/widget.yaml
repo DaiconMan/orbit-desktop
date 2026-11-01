@@ -1,0 +1,35 @@
+id: system-stats
+name: System Stats HUD
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "CPU, memory, disk I/O and network sparklines, latency to configured hosts and the last speed test."
+needs: [system]
+default_size:
+  width: 25vw
+  height: auto
+settings:
+  show_status:
+    type: boolean
+    default: true
+    description: "IDLE / ACTIVE / BUSY / HIGH LOAD status line"
+  show_disk:
+    type: boolean
+    default: true
+  show_network:
+    type: boolean
+    default: true
+  show_ping:
+    type: boolean
+    default: true
+    description: "One row per providers.ping.targets entry"
+  show_speed:
+    type: boolean
+    default: true
+    description: "networkQuality result (needs providers.speedtest.enabled)"
+  speed_full_scale_mbps:
+    type: number
+    default: 1000
+    min: 10
+    max: 100000
