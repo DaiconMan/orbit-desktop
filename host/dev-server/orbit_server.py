@@ -1,0 +1,397 @@
+#!/usr/bin/env python3
+"""Orbit Desktop - phase 1 dev server (Python stdlib only, 3.9 - 3.13).
+
+Serves the runtime page, builds the sandboxed plugin frames and exposes the
+provider API documented in docs/provider-api.md. A future Swift host app will
+implement the same API.
+
+Hardening (see docs/security.md):
+  * binds 127.0.0.1 only
+  * Host header allow-list (blocks DNS-rebinding), Origin check on /api/*
+  * no directory listing; only an explicit set of known files is ever served
+  * GET only
+  * plugin frames get a strict CSP (`default-src 'none'`, no network) plus the
+    CSP `sandbox allow-scripts` directive
+
+Usage:
+  python3 host/dev-server/orbit_server.py [--port 47900] [--config PATH]
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import http.server
+import json
+import os
+import re
+import secrets
+import sys
+import threading
+import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import orbit_config as oc  # noqa: E402
+from providers import Providers  # noqa: E402
+
+RUNTIME_DIR = os.path.join(oc.REPO_ROOT, "runtime")
+RUNTIME_FILES = {  # url path -> (file, content type)
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/runtime/host.js": ("host.js", "text/javascript; charset=utf-8"),
+    "/runtime/host.css": ("host.css", "text/css; charset=utf-8"),
+}
+SDK_JS = os.path.join(RUNTIME_DIR, "sdk", "orbit-sdk.js")
+SDK_CSS = os.path.join(RUNTIME_DIR, "sdk", "orbit-sdk.css")
+ASSET_TYPES = {".json": "application/json", ".txt": "text/plain; charset=utf-8", ".csv": "text/csv; charset=utf-8"}
+MAX_SSE_CLIENTS = 8
+
+
+class State:
+    """Current config + plugins; reloaded when layout.yaml or a manifest changes."""
+
+    def __init__(self, config_path: str, include_user: bool):
+        self.config_path = config_path
+        self.include_user = include_user
+        self.lock = threading.Lock()
+        self.stamp = None
+        self.version = ""
+        self.plugins = {}
+        self.resolved = {}
+        self.reload_if_changed()
+
+    def _stamp(self):
+        parts = []
+        for p in [self.config_path] + [os.path.join(r, n, "widget.yaml") for r in (oc.REPO_WIDGETS, oc.USER_WIDGETS)
+                                       if os.path.isdir(r) for n in sorted(os.listdir(r))]:
+            try:
+                st = os.stat(p)
+                parts.append(f"{p}:{st.st_mtime_ns}:{st.st_size}")
+            except OSError:
+                parts.append(f"{p}:-")
+        return "|".join(parts)
+
+    def reload_if_changed(self):
+        stamp = self._stamp()
+        with self.lock:
+            if stamp == self.stamp:
+                return
+            errors, warnings = [], []
+            plugins = oc.discover_plugins(errors, warnings, include_user=self.include_user)
+            res = oc.load_layout(self.config_path, plugins)
+            res["errors"] = errors + res["errors"]
+            res["warnings"] = warnings + res["warnings"]
+            self.plugins, self.resolved, self.stamp = plugins, res, stamp
+            self.version = format(abs(hash(stamp)) % (1 << 48), "x")
+            for e in res["errors"]:
+                print(f"[orbit] config error: {e}", flush=True)
+            for w in res["warnings"]:
+                print(f"[orbit] warning: {w}", flush=True)
+
+    def active_plugin_ids(self):
+        ids = {w["use"] for w in self.resolved.get("widgets", [])}
+        bg = self.resolved.get("background")
+        if bg and not bg["builtin"]:
+            ids.add(bg["use"])
+        return ids
+
+    def public_config(self):
+        r = self.resolved
+        prov = r["providers"]
+        return {
+            "version": self.version,
+            "configPath": self.config_path,
+            "theme": r["theme"],
+            "background": r["background"],
+            "widgets": r["widgets"],
+            "providers": {"weather": prov["weather"]["enabled"], "nowPlaying": prov["now_playing"]["enabled"],
+                          "claudeUsage": prov["claude_usage"]["enabled"], "speedtest": prov["speedtest"]["enabled"],
+                          "pingTargets": [t["name"] for t in prov["ping"]["targets"]]},
+            "errors": r["errors"],
+            "warnings": r["warnings"],
+        }
+
+
+def read_text(path, limit=2_000_000):
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read(limit)
+
+
+def make_handler(state: State, prov: Providers, port: int):
+    allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+    allowed_origins = {f"http://{h}" for h in allowed_hosts}
+    ancestors = " ".join(sorted(allowed_origins))
+    sse_slots = threading.BoundedSemaphore(MAX_SSE_CLIENTS)
+
+    host_csp = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+                "media-src 'self'; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'none'; "
+                "object-src 'none'; frame-ancestors 'none'")
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def version_string(self):
+            return "OrbitDesktopDev"
+
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *a):
+            pass
+
+        # ---------------------------------------------------------- method gate
+        def do_HEAD(self):
+            self.send_error(405)
+
+        def do_POST(self):
+            self.send_error(405)
+
+        do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_POST
+
+        def do_GET(self):
+            if self.headers.get("Host", "") not in allowed_hosts:
+                return self.send_error(403, "Host not allowed")
+            path = self.path.split("?", 1)[0]
+            if path.startswith("/api/"):
+                origin = self.headers.get("Origin")
+                if origin is not None and origin not in allowed_origins:
+                    return self.send_error(403, "Origin not allowed")
+                return self.api(path)
+            if path in RUNTIME_FILES:
+                name, ctype = RUNTIME_FILES[path]
+                try:
+                    with open(os.path.join(RUNTIME_DIR, name), "rb") as f:
+                        body = f.read()
+                except OSError:
+                    return self.send_error(404)
+                extra = {"Content-Security-Policy": host_csp} if ctype.startswith("text/html") else {}
+                return self.send(body, ctype, extra)
+            m = re.match(r"^/frame/([a-z0-9][a-z0-9-]{1,40})$", path)
+            if m:
+                return self.frame(m.group(1))
+            m = re.match(r"^/plugins/([a-z0-9][a-z0-9-]{1,40})/assets/([A-Za-z0-9._/-]+)$", path)
+            if m:
+                return self.plugin_asset(m.group(1), m.group(2))
+            if path == "/media/background":
+                return self.media()
+            self.send_error(404)
+
+        # ---------------------------------------------------------- helpers
+        def send(self, body: bytes, ctype: str, extra: dict | None = None, status=200):
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+            for k, v in (extra or {}).items():
+                self.send_header(k, v)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def json(self, obj):
+            return self.send(json.dumps(obj, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
+
+        # ---------------------------------------------------------- API
+        def api(self, path):
+            state.reload_if_changed()
+            if path == "/api/health":
+                return self.json({"ok": True, "api": 1, "server": "orbit-dev-server", "time": time.time()})
+            if path == "/api/config":
+                return self.json(state.public_config())
+            if path == "/api/config/version":
+                return self.json({"version": state.version})
+            if path == "/api/signals/system":
+                return self.json(prov.get("system"))
+            if path == "/api/signals/now-playing":
+                if not state.resolved["providers"]["now_playing"]["enabled"]:
+                    return self.send_error(404, "now_playing provider disabled")
+                return self.json(prov.get("nowPlaying"))
+            if path == "/api/signals/artwork":
+                body, ctype = prov.artwork()
+                if not body:
+                    return self.send_error(404)
+                return self.send(body, ctype)
+            if path == "/api/signals/calendar":
+                return self.send(prov.calendar_bytes(), "application/json; charset=utf-8")
+            if path == "/api/signals/weather":
+                if not state.resolved["providers"]["weather"]["enabled"]:
+                    return self.send_error(404, "weather provider disabled")
+                return self.json(prov.get("weather"))
+            if path == "/api/signals/location":
+                return self.json(prov.get("location"))
+            if path == "/api/signals/claude-usage":
+                if not state.resolved["providers"]["claude_usage"]["enabled"]:
+                    return self.send_error(404, "claude_usage provider disabled (unofficial, opt-in)")
+                return self.json(prov.get("claudeUsage"))
+            if path == "/api/signals/audio":
+                try:
+                    with open(prov.audio_path(), "rb") as f:
+                        body = f.read(4096)
+                except OSError:
+                    body = b"null"
+                return self.send(body, "application/json")
+            if path == "/api/stream/audio":
+                return self.audio_stream()
+            self.send_error(404)
+
+        def audio_stream(self):
+            """Server-Sent Events: push each new frame the audio helper writes (~20 Hz)."""
+            if not sse_slots.acquire(blocking=False):
+                return self.send_error(503, "too many streams")
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.end_headers()
+                self.close_connection = True
+                fp, last, beat = prov.audio_path(), 0, time.time()
+                while True:
+                    try:
+                        m = os.stat(fp).st_mtime_ns
+                        if m != last:
+                            last = m
+                            with open(fp, "rb") as f:
+                                data = f.read(4096).strip().replace(b"\n", b"")
+                            if data:
+                                self.wfile.write(b"data: " + data + b"\n\n")
+                                self.wfile.flush()
+                    except OSError:
+                        pass
+                    if time.time() - beat > 15:  # keep-alive comment; detects closed clients
+                        self.wfile.write(b": ping\n\n")
+                        self.wfile.flush()
+                        beat = time.time()
+                    time.sleep(0.015)
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                return
+            finally:
+                sse_slots.release()
+
+        # ---------------------------------------------------------- plugin frames
+        def frame(self, pid):
+            state.reload_if_changed()
+            if pid not in state.active_plugin_ids() or pid not in state.plugins:
+                return self.send_error(404)
+            m = state.plugins[pid]
+            try:
+                sdk_js, sdk_css = read_text(SDK_JS), read_text(SDK_CSS)
+                js = read_text(os.path.join(m["folder"], "widget.js"))
+                css_path = os.path.join(m["folder"], "style.css")
+                css = read_text(css_path) if os.path.isfile(css_path) else ""
+            except OSError:
+                return self.send_error(500)
+            nonce = base64.b64encode(secrets.token_bytes(16)).decode()
+
+            def safe_js(s):  # keep the inline script from closing its own tag
+                return s.replace("</script", "<\\/script").replace("<!--", "<\\!--")
+
+            def safe_css(s):
+                return s.replace("</style", "<\\/style")
+
+            meta = json.dumps({"id": pid, "kind": m["kind"]})
+            html = (
+                "<!doctype html><html><head><meta charset=\"utf-8\">"
+                f"<title>{pid}</title><style>{safe_css(sdk_css)}</style><style>{safe_css(css)}</style></head>"
+                f"<body class=\"orbit-{m['kind']}\"><div id=\"orbit-root\"></div>"
+                f"<script nonce=\"{nonce}\">window.__ORBIT_PLUGIN__={meta};</script>"
+                f"<script nonce=\"{nonce}\">{safe_js(sdk_js)}</script>"
+                f"<script nonce=\"{nonce}\">{safe_js(js)}\n//# sourceURL=orbit-plugin/{pid}/widget.js</script>"
+                "</body></html>"
+            ).encode("utf-8")
+            csp = (f"default-src 'none'; script-src 'nonce-{nonce}'; style-src 'unsafe-inline'; img-src data: blob:; "
+                   "font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; child-src 'none'; "
+                   "worker-src 'none'; object-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'; "
+                   f"frame-ancestors {ancestors}; sandbox allow-scripts")
+            return self.send(html, "text/html; charset=utf-8", {
+                "Content-Security-Policy": csp,
+                "Permissions-Policy": "camera=(), microphone=(), geolocation=(), usb=(), payment=(), display-capture=()",
+            })
+
+        def plugin_asset(self, pid, rel):
+            if pid not in state.active_plugin_ids() or pid not in state.plugins:
+                return self.send_error(404)
+            m = state.plugins[pid]
+            if rel not in m.get("assets", []):  # only files the manifest lists (already path-checked)
+                return self.send_error(404)
+            ext = os.path.splitext(rel)[1].lower()
+            try:
+                with open(os.path.join(m["folder"], rel), "rb") as f:
+                    body = f.read(oc.MAX_ASSET + 1)
+            except OSError:
+                return self.send_error(404)
+            return self.send(body, ASSET_TYPES.get(ext, "application/octet-stream"))
+
+        # ---------------------------------------------------------- built-in image / video background
+        def media(self):
+            state.reload_if_changed()
+            mp = oc.media_path_for(state.resolved.get("background"))
+            if not mp:
+                return self.send_error(404)
+            path, ctype = mp
+            size = os.path.getsize(path)
+            rng = self.headers.get("Range", "")
+            m = re.match(r"^bytes=(\d*)-(\d*)$", rng.strip())
+            start, end, status = 0, size - 1, 200
+            if m and (m.group(1) or m.group(2)):
+                if m.group(1):
+                    start = int(m.group(1))
+                    end = min(int(m.group(2)) if m.group(2) else size - 1, size - 1)
+                else:
+                    start = max(0, size - int(m.group(2)))
+                if start > end or start >= size:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{size}")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                status = 206
+            length = end - start + 1
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(length))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            if status == 206:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.end_headers()
+            try:
+                with open(path, "rb") as f:
+                    f.seek(start)
+                    left = length
+                    while left > 0:
+                        chunk = f.read(min(1 << 20, left))
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        left -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+    return Handler
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Orbit Desktop dev server (127.0.0.1 only)")
+    ap.add_argument("--port", type=int, default=47900)
+    ap.add_argument("--config", default=None,
+                    help=f"layout.yaml (default: {oc.USER_CONFIG}, falling back to examples/layout.yaml)")
+    ap.add_argument("--no-user-plugins", action="store_true", help=f"ignore {oc.USER_WIDGETS}")
+    a = ap.parse_args(argv)
+    cfg = a.config or (oc.USER_CONFIG if os.path.isfile(oc.USER_CONFIG) else oc.EXAMPLE_CONFIG)
+    cfg = os.path.abspath(os.path.expanduser(cfg))
+    state = State(cfg, include_user=not a.no_user_plugins)
+    prov = Providers(state.resolved["providers"])
+    prov.start()
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(state, prov, a.port))
+    srv.daemon_threads = True
+    print(f"[orbit] config: {cfg}", flush=True)
+    print(f"[orbit] serving http://127.0.0.1:{a.port}/  (providers are read at start-up; restart after changing providers:)", flush=True)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()
