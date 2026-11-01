@@ -57,9 +57,17 @@ def read_small(path, limit=2_000_000):
         return None
 
 
+# Fields of the `system` signal a native host app may supply (see --host-dir in orbit_server.py).
+HOST_SYSTEM_FIELDS = ("cpu", "load", "mem", "disk", "net")
+HOST_FRESH_SECONDS = 10
+
+
 class Providers:
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, host_dir: str | None = None):
         self.cfg = cfg
+        # When the Swift host app runs us, it measures system stats, audio and calendar natively
+        # and drops them as JSON files into host_dir. We then skip our own subprocess-based loops.
+        self.host_dir = host_dir
         self.lock = threading.Lock()
         self.system = {"cpu": None, "load": None, "mem": None, "disk": None, "net": None, "ping": {}, "speed": None,
                        "ts": 0}
@@ -75,7 +83,7 @@ class Providers:
     # ------------------------------------------------------------------ lifecycle
     def start(self):
         p = self.cfg
-        loops = [self.fast_loop, self.disk_loop, self.location_loop]
+        loops = [self.location_loop] if self.host_dir else [self.fast_loop, self.disk_loop, self.location_loop]
         if p["ping"]["targets"] or p["ping"]["external_file"]:
             loops.append(self.ping_loop)
         if p["speedtest"]["enabled"]:
@@ -423,7 +431,10 @@ return "ok"
     def get(self, name):
         with self.lock:
             if name == "system":
-                return json.loads(json.dumps(self.system))
+                out = json.loads(json.dumps(self.system))
+                if self.host_dir:
+                    out.update(self._host_system())
+                return out
             if name == "nowPlaying":
                 return dict(self.now)
             if name == "location":
@@ -440,8 +451,21 @@ return "ok"
                 return self.art["bytes"], self.art["type"]
         return None, None
 
+    def _host_system(self):
+        """System fields written by the host app (host_dir/system.json), or nulls if stale."""
+        try:
+            j = json.loads(read_small(os.path.join(self.host_dir, "system.json"), 64_000) or b"{}")
+            if time.time() - float(j.get("ts", 0)) < HOST_FRESH_SECONDS:
+                return {k: j.get(k) for k in HOST_SYSTEM_FIELDS + ("ts",)}
+        except (ValueError, TypeError, AttributeError):
+            pass
+        return {k: None for k in HOST_SYSTEM_FIELDS}
+
     def calendar_bytes(self):
-        return read_small(self.cfg["calendar"]["file"]) or b'{"events": []}'
+        path = os.path.join(self.host_dir, "calendar.json") if self.host_dir else self.cfg["calendar"]["file"]
+        return read_small(path) or b'{"events": []}'
 
     def audio_path(self):
+        if self.host_dir:
+            return os.path.join(self.host_dir, "audio.json")
         return os.path.expanduser(self.cfg["audio"]["file"])

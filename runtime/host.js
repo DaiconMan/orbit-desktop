@@ -180,6 +180,14 @@
   }
   const needed = () => new Set(frames.flatMap(f => f.needs));
   function every(ms, fn) { fn(); return setInterval(fn, ms); }
+  // Slow signals: poll every `ms`, but until the host has a first value (it may still be
+  // fetching right after start-up) retry every 5 s instead of leaving the widget empty.
+  function slowPoll(ms, path, name) {
+    let have = false;
+    const tick = async () => { try { const v = await getJSON(path); if (v) { have = true; publish(name, v); } } catch (e) {} };
+    const warm = setInterval(() => { if (have) clearInterval(warm); else tick(); }, 5000);
+    return every(ms, tick);
+  }
 
   let artKey = null, artURL = null;
   async function pollNowPlaying() {
@@ -228,9 +236,9 @@
     if (n.has('system')) every(2000, async () => { try { let s = await getJSON('/api/signals/system'); if (DEMO) s = demoSystem(s); publish('system', s); } catch (e) {} });
     if (n.has('nowPlaying') && (p.nowPlaying || DEMO)) every(2000, pollNowPlaying);
     if (n.has('calendar')) every(30000, async () => { try { publish('calendar', await getJSON('/api/signals/calendar')); } catch (e) {} });
-    if (n.has('weather') && p.weather) every(60000, async () => { try { const w = await getJSON('/api/signals/weather'); if (w) publish('weather', w); } catch (e) {} });
-    if (n.has('location')) every(60000, async () => { try { const l = await getJSON('/api/signals/location'); if (l) publish('location', l); } catch (e) {} });
-    if (n.has('claudeUsage') && p.claudeUsage) every(30000, async () => { try { const c = await getJSON('/api/signals/claude-usage'); if (c) publish('claudeUsage', c); } catch (e) {} });
+    if (n.has('weather') && p.weather) slowPoll(60000, '/api/signals/weather', 'weather');
+    if (n.has('location')) slowPoll(60000, '/api/signals/location', 'location');
+    if (n.has('claudeUsage') && p.claudeUsage) slowPoll(30000, '/api/signals/claude-usage', 'claudeUsage');
     if (n.has('audio')) startAudio();
   }
 

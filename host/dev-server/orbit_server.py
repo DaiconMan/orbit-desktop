@@ -15,6 +15,10 @@ Hardening (see docs/security.md):
 
 Usage:
   python3 host/dev-server/orbit_server.py [--port 47900] [--config PATH]
+
+When launched by the Swift host app (host/app) it also gets
+  --host-dir DIR     system stats / audio / calendar come from JSON files the app writes there
+  --parent-pid PID   exit as soon as the app goes away (never linger holding the port)
 """
 from __future__ import annotations
 
@@ -194,7 +198,8 @@ def make_handler(state: State, prov: Providers, port: int):
         def api(self, path):
             state.reload_if_changed()
             if path == "/api/health":
-                return self.json({"ok": True, "api": 1, "server": "orbit-dev-server", "time": time.time()})
+                return self.json({"ok": True, "api": 1, "server": "orbit-dev-server", "time": time.time(),
+                              "hostApp": prov.host_dir is not None})
             if path == "/api/config":
                 return self.json(state.public_config())
             if path == "/api/config/version":
@@ -371,18 +376,31 @@ def make_handler(state: State, prov: Providers, port: int):
     return Handler
 
 
+def watch_parent(pid: int):
+    while True:
+        time.sleep(2)
+        if os.getppid() != pid:  # re-parented to launchd: the host app died
+            print("[orbit] host app went away; exiting", flush=True)
+            os._exit(0)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Orbit Desktop dev server (127.0.0.1 only)")
     ap.add_argument("--port", type=int, default=47900)
     ap.add_argument("--config", default=None,
                     help=f"layout.yaml (default: {oc.USER_CONFIG}, falling back to examples/layout.yaml)")
     ap.add_argument("--no-user-plugins", action="store_true", help=f"ignore {oc.USER_WIDGETS}")
+    ap.add_argument("--host-dir", default=None, help="read native host-app provider files from DIR")
+    ap.add_argument("--parent-pid", type=int, default=None, help="exit when this process is gone")
     a = ap.parse_args(argv)
     cfg = a.config or (oc.USER_CONFIG if os.path.isfile(oc.USER_CONFIG) else oc.EXAMPLE_CONFIG)
     cfg = os.path.abspath(os.path.expanduser(cfg))
     state = State(cfg, include_user=not a.no_user_plugins)
-    prov = Providers(state.resolved["providers"])
+    host_dir = os.path.abspath(os.path.expanduser(a.host_dir)) if a.host_dir else None
+    prov = Providers(state.resolved["providers"], host_dir=host_dir)
     prov.start()
+    if a.parent_pid:
+        threading.Thread(target=watch_parent, args=(a.parent_pid,), daemon=True, name="watch_parent").start()
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(state, prov, a.port))
     srv.daemon_threads = True
     print(f"[orbit] config: {cfg}", flush=True)
