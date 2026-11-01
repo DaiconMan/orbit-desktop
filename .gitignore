@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+/build/
+/dist/
+*.swp
+# personal layouts belong in ~/.config/orbit-desktop, never in the repo
+layout.local.yaml
