@@ -1,5 +1,8 @@
 # Host helpers (optional)
 
+> If you use the Swift host app (`host/app`), you don't need `audiopulse` or `calpulse`. The app
+> does the same work in-process. The helpers remain for the dev server + Plash setup.
+
 Small native helpers that feed the dev server's providers through local JSON files. None of them
 touch the network. All are optional: without them the `audio` / `calendar` signals stay empty.
 

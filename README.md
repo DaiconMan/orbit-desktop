@@ -8,9 +8,10 @@ On top sit widgets for time, weather, system stats, now playing, today's schedul
 Everything is a plugin, configured in one YAML file, and every plugin runs in a **sandboxed,
 network-less frame**, so community widgets can't phone home with your calendar.
 
-> Status: **phase 1 / developer preview.** It runs as a local web page shown on the desktop by
-> [Plash](https://github.com/sindresorhus/Plash), served by a small Python dev server. A native
-> Swift host app is next (see the roadmap).
+> Status: **developer preview.** A small Swift menu-bar app (`host/app`) shows the page on the
+> desktop and measures system stats, audio and calendar natively. It runs the Python dev server
+> as a child process. You can still use the dev server alone with
+> [Plash](https://github.com/sindresorhus/Plash).
 
 <!-- Screenshots: docs/images/desktop.png, docs/images/demo.gif (to be added) -->
 _Screenshots coming soon._
@@ -31,6 +32,21 @@ _Screenshots coming soon._
   * see [docs/security.md](docs/security.md)
 * **Friendly errors**: config mistakes appear on the desktop with the exact key and fix. Save
   the file and the desktop reloads.
+
+## Quick start (host app)
+
+Requirements: macOS 14+ (14.2+ for audio reactions) and the Xcode Command Line Tools
+(`xcode-select --install`).
+
+```sh
+git clone <this repo> ~/src/orbit-desktop && cd ~/src/orbit-desktop
+host/app/build.sh --install      # builds "Orbit Desktop.app" into ~/Applications and starts it
+```
+
+Then use the ✦ menu-bar icon and choose **Edit layout.yaml…** to set `providers.location` to your
+city. macOS asks for the Calendar and System Audio Recording permissions the first time a widget
+needs them. Details, including how to keep permissions across rebuilds, are in
+[host/app/README.md](host/app/README.md).
 
 ## Quick start (dev server + Plash)
 
@@ -81,10 +97,11 @@ reference, the SDK, examples and the PR review checklist.
 ## Architecture
 
 ```
-layout.yaml ──► host (dev server today, Swift app tomorrow)
-                 ├─ validates config + manifests (stdlib YAML subset)
-                 ├─ providers: system · now playing · weather · location · calendar · audio · …
-                 └─ Provider API (HTTP + SSE on 127.0.0.1)  ── docs/provider-api.md
+layout.yaml ──► Orbit Desktop.app (Swift): desktop windows, native system / audio / calendar
+                 └─ child: dev server (Python)
+                      ├─ validates config + manifests (stdlib YAML subset)
+                      ├─ providers: now playing · weather · location · ping · …
+                      └─ Provider API (HTTP + SSE on 127.0.0.1)  ── docs/provider-api.md
                           ▼
                  runtime page (trusted) ── postMessage (only declared `needs`) ──► plugin iframes
                                                                                     (sandbox, CSP: no network)
@@ -92,11 +109,11 @@ layout.yaml ──► host (dev server today, Swift app tomorrow)
 
 ## Roadmap
 * **Phase 1 (this):** plugin architecture, sandbox, YAML config, Python dev server, Plash.
-* **Phase 2 – Swift host app** replacing Plash and the Python server:
-  * a desktop-level window with WKWebView
-  * built-in providers (EventKit, Core Audio tap, CoreLocation)
-  * a `WKContentRuleList` blocking all non-loopback loads for plugin frames
-  * a menu-bar UI for layouts
+* **Phase 2 – Swift host app** (`host/app`, in progress):
+  * done: desktop-level windows with WKWebView, a menu-bar item, a child-process server
+  * done: native system stats, a Core Audio tap and EventKit
+  * done: a `WKContentRuleList` blocking all non-loopback loads, and WebRTC switched off
+  * next: CoreLocation, now playing, a 20 fps background budget, a layout UI
 * **Phase 3 – distribution:** a Homebrew cask, then a signed and notarized build (Developer ID).
   Auto-update after that.
 * Later: a plugin gallery, per-plugin permission prompts for sensitive signals, multi-display

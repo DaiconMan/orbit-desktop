@@ -1,8 +1,15 @@
 # Provider API (v1)
 
-The contract between a **host** and the **runtime page**. In phase 1 the host is the Python dev
-server (`host/dev-server/orbit_server.py`). The planned Swift host app will implement exactly this
-API, so the runtime and every plugin keep working unchanged.
+The contract between a **host** and the **runtime page**. The host is the Python dev server
+(`host/dev-server/orbit_server.py`). It runs either on its own or as a child process of the Swift
+host app (`host/app`). In the second case, it gets these arguments:
+* `--host-dir DIR`: the app measures the `system` fields `cpu`, `load`, `mem`, `disk` and
+  `net`, plus the `audio` and `calendar` signals, natively. It writes them to
+  `DIR/system.json`, `DIR/audio.json` and `DIR/calendar.json`, in the formats below. The server
+  serves those files instead of running its own loops.
+* `--parent-pid PID`: the server exits when the app is gone.
+
+The responses are the same either way, so the runtime and every plugin work unchanged.
 
 Plugins never call this API. Only the trusted runtime page does, and it forwards data to plugin
 frames over `postMessage` (see [Runtime ↔ plugin messages](#runtime--plugin-messages)).
@@ -62,7 +69,8 @@ The resolved, validated layout. Invalid widgets are dropped, and the reasons app
 This changes whenever `layout.yaml` or any `widget.yaml` changes. The runtime polls it every 5 s
 and reloads when it changes.
 
-### `GET /api/health` → `{"ok": true, "api": 1, "server": "orbit-dev-server", "time": 1700000000.0}`
+### `GET /api/health` → `{"ok": true, "api": 1, "server": "orbit-dev-server", "time": 1700000000.0, "hostApp": false}`
+`hostApp` is `true` when the server runs under the Swift host app (`--host-dir`).
 
 ## Signals
 

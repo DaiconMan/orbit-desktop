@@ -124,13 +124,15 @@ signals reaching the foreign document. This is verified in WebKit.
 
 1. **One-shot exfiltration by self-navigation.** The request that leaves during the navigation
    can carry whatever that plugin had *already* received, and only signals it declared. The kill
-   switch stops anything after that. *Phase 2:* the Swift host loads the runtime in a WKWebView
-   with a `WKContentRuleList` that blocks every non-loopback load for frames, and a navigation
-   delegate that cancels frame navigations before any request is made.
+   switch stops anything after that. *Mitigated in the Swift host app:* it loads the runtime in
+   a WKWebView with a `WKContentRuleList` that blocks every non-loopback load, and a navigation
+   delegate that cancels navigations to any other origin, in any frame, before a request is
+   made. It remains open when you use the dev server with Plash or a browser.
 2. **WebRTC / DNS prefetch side channels.** Some engines let `RTCPeerConnection` or DNS prefetch
    bypass `connect-src`. This has **not** been tested yet in phase 1. `tools/validate.py` flags
-   any `RTCPeerConnection` use for reviewers. *Phase 2:* disable WebRTC in the
-   host's WKWebView configuration.
+   any `RTCPeerConnection` use for reviewers. *Mitigated in the Swift host app:* WebRTC is
+   switched off in its WKWebView configuration. WebKit has no public switch for this, so the app
+   calls the SPI only when it exists. DNS prefetch is still untested.
 3. **Timing / covert channels between plugins** are possible in theory, for example through CPU
    contention. They can't leave the machine without a network path.
 4. **Resource abuse.** A plugin can burn CPU or GPU, but it can't hurt anything else. Backgrounds

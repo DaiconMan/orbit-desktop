@@ -36,9 +36,21 @@ bright artwork glow, overlapping elements, hidden clock, vertical schedule, text
 - Dev server: `python3 host/dev-server/orbit_server.py` — use a port other than 47800 (the prototype).
 - JS syntax check without node: `osascript -l JavaScript -e "... new Function(src) ..."` (see phase-1 notes).
 
+## Swift host app (host/app) — hybrid, decided 2026-11-02
+- The app owns the desktop windows, the menu bar and the native providers: system stats, the audio tap
+  and EventKit. It writes JSON files into `~/Library/Caches/orbit-desktop/host/`.
+- It runs `orbit_server.py --host-dir … --parent-pid …` as a child process. Config validation, frames
+  and the HTTP API stay in Python, with no second implementation in Swift.
+- Bundle id: `io.github.daiconman.orbit-desktop`. Build with `host/app/build.sh` (SwiftPM, no Xcode).
+  Ad-hoc signing resets TCC on every rebuild; use `ORBIT_SIGN_IDENTITY` with a self-signed cert.
+- Core Audio set-up/tear-down can block while a TCC prompt is open, so keep it off the main thread
+  (it froze quitting once).
+- Check what the desktop shows with `screencapture -l <windowID>`. The window is at layer -2147483623,
+  owner "Orbit Desktop".
+
 ## Next steps
-1. Swift host app (desktop window, providers for audio tap / EventKit / now playing / system stats, one bundle id
-   so TCC permissions stick; note ad-hoc re-signing resets TCC grants).
+1. Host app follow-ups: CoreLocation provider, now playing in-process (AppleScript or MediaRemote),
+   pause rendering when the screen sleeps or is locked, layout picker in the menu.
 2. Port the latest prototype UI (schedule timeline with leader lines, now-playing slide-in / slow "aha" fade-out,
    Tailscale/NAS mount rows, battery/Time Machine/GitHub/RFC/ISS panels if they prove useful).
 3. Performance budget: MacBook Air is fanless — cap the background at ~20 fps, sprite-based drawing.
