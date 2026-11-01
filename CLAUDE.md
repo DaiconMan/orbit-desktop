@@ -48,7 +48,13 @@ bright artwork glow, overlapping elements, hidden clock, vertical schedule, text
 - Check what the desktop shows with `screencapture -l <windowID>`. The window is at layer -2147483623,
   owner "Orbit Desktop".
 
+## Modules (docs/modules.md)
+The owner wants widgets to be topic **modules** that bundle related info (handed over from mac-setup on
+2026-11-02; the design is ours). Personal or environment-specific data (RFCs, certs) comes from trusted
+**feeds**, never from sandboxed widgets. Port prototype visuals per module once its UI pass settles.
+
 ## Next steps
+0. Modules: follow the order of work in docs/modules.md §7 (SDK module kit + stacks first).
 1. Host app follow-ups: CoreLocation provider, now playing in-process (AppleScript or MediaRemote),
    pause rendering when the screen sleeps or is locked, layout picker in the menu.
 2. Port the latest prototype UI (schedule timeline with leader lines, now-playing slide-in / slow "aha" fade-out,
