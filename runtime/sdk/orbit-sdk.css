@@ -1,0 +1,15 @@
+/* Base styles injected into every plugin frame. */
+:root {
+  --font: -apple-system, "SF Pro Display", "Hiragino Sans", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --fg: #fff;
+  --a: 90,150,255; --b: 230,120,200; --c: 70,220,200;
+  --vh: 1vh; --vw: 1vw;       /* replaced with the HOST screen's units by the SDK */
+  --max-w: 90vw;
+}
+html, body { margin: 0; padding: 0; background: transparent; color: var(--fg); overflow: hidden;
+  font-family: var(--font); -webkit-font-smoothing: antialiased; }
+#orbit-root { position: absolute; top: 0; left: 0; width: max-content; max-width: var(--max-w); }
+#orbit-root.fixed-w { width: 100%; max-width: none; }
+body.orbit-background #orbit-root { inset: 0; width: 100vw; height: 100vh; max-width: none; }
+.orbit-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }

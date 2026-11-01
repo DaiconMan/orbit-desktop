@@ -1,0 +1,17 @@
+:root { --font: -apple-system, "SF Pro Display", "Hiragino Sans", sans-serif; --mono: ui-monospace, "SF Mono", Menlo, monospace; --fg: #fff; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; color: var(--fg); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+.bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+.bg > img, .bg > video { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bg > iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+#widgets { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+.slot { position: absolute; }
+.slot iframe { display: block; border: 0; background: transparent; color-scheme: normal; pointer-events: none; }
+.slot.pending iframe { visibility: hidden; }
+.problems { position: fixed; z-index: 1000; left: 50%; top: 2vh; transform: translateX(-50%); max-width: 70vw; max-height: 60vh; overflow: hidden;
+  padding: 1.4vh 1.8vh; border-radius: 12px; background: rgba(30, 6, 12, .82); border: 1px solid rgba(255, 90, 110, .5);
+  font: 500 12px/1.5 var(--mono); color: #ffd9de; box-shadow: 0 10px 40px rgba(0, 0, 0, .5); }
+.problems.only-warn { background: rgba(28, 22, 4, .8); border-color: rgba(255, 184, 77, .5); color: #ffe9c2; }
+.problems h1 { font: 700 12px var(--mono); letter-spacing: .2em; margin: 0 0 .8vh; text-transform: uppercase; }
+.problems ul { margin: 0; padding-left: 1.2em; }
+.problems li.warn { color: #ffd38a; }
+.problems small { opacity: .6; display: block; margin-top: .8vh; }
