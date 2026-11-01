@@ -1,0 +1,73 @@
+id: starfield
+name: Starfield
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: background
+description: "The real night sky over your location (stars, Milky Way, planets, Moon, Sgr A*) with meteors, network streamlines and an occasional UFO."
+needs: [system, audio, nowPlaying, location]
+assets:
+  - data/stars.6.json
+reactions:
+  hooks:
+    twinkle: "Star twinkle strength and speed"
+    meteors: "Shooting-star rate (meteor shower at 1.0)"
+    heat: "Warm glow from the bottom edge; pulsing edges above 0.7"
+    streamlines: "Number, speed and length of the flowing light trails"
+    glow: "Milky Way brightness and bright-star flare"
+  default:
+    cpu: [twinkle, meteors, heat]
+    net: streamlines
+    audio.bass: glow
+settings:
+  fps:
+    type: integer
+    default: 30
+    min: 10
+    max: 60
+    description: "Frame-rate cap (30 keeps GPU use low)"
+  milky_way:
+    type: boolean
+    default: true
+  planets:
+    type: boolean
+    default: true
+  moon:
+    type: boolean
+    default: true
+  black_hole:
+    type: boolean
+    default: true
+    description: "Draw Sagittarius A* when it is above the horizon"
+  labels:
+    type: boolean
+    default: true
+    description: "Planet / Sgr A* labels (Japanese names when theme.locale is ja)"
+  meteors:
+    type: boolean
+    default: true
+  streamline_count:
+    type: integer
+    default: 90
+    min: 0
+    max: 300
+  ufo:
+    type: boolean
+    default: true
+    description: "Easter egg: a UFO crosses the sky every few minutes"
+  vignette:
+    type: boolean
+    default: true
+  scanlines:
+    type: boolean
+    default: true
+  heat_glow:
+    type: boolean
+    default: true
+    description: "Enable the DOM overlay driven by the heat hook"
+  time_scale:
+    type: number
+    default: 1
+    min: 1
+    max: 10000
+    description: "Speed up sky rotation for previews (1 = real time)"
