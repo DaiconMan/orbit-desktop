@@ -5,13 +5,15 @@ Live, config-driven desktop wallpaper for macOS: a starfield background (real sk
 Communicate with the owner in Japanese.
 
 ## Origin
-Spun out on 2026-11-02 from a personal prototype built in the `mac-setup` session
-(`~/Desktop/Claude/Setup`). The prototype still runs the owner's actual wallpaper and is NOT part of this repo:
-- page: `~/Movies/Wallpapers/nowplaying/index.html` (shown full-screen by the Plash app)
-- server: `~/bin/nowplaying-wallpaper.py` (127.0.0.1:47800, LaunchAgent `jp.daiconman.nowplaying-wallpaper`)
-- helpers: `~/Applications/AudioPulse.app`, `~/Applications/CalPulse.app`, `~/bin/lan-latency.sh`
-Treat the prototype as reference only; do not edit it from this project. Its design is still evolving
-(a UI pass is in progress there) — port improvements here deliberately.
+Spun out on 2026-11-02 from a personal prototype built in the `mac-setup` session (a Plash page + Python server).
+On 2026-11-03 everything was ported here, and **Orbit Desktop.app (~/Applications) became the owner's live wallpaper**,
+including the Earthquake Early Warning, which is safety-relevant: never leave it broken or stopped. The prototype is
+being deleted. The owner's layout is in `~/.config/orbit-desktop/layout.yaml` (personal hosts live there, never in the
+repo), and the settings window writes `~/.config/orbit-desktop/settings.json`.
+- Screenshot the live wallpaper with `tools/wallshot out.jpg`; render any page off-screen with `swift tools/snap.swift`.
+- After changing runtime/ or widgets/, rebuild and reinstall (`host/app/build.sh --install`): the app serves the
+  copy inside its bundle.
+- If Xcode's license isn't accepted, `export DEVELOPER_DIR=/Library/Developer/CommandLineTools` before python3/swift.
 
 ## Decisions already made (do not re-litigate)
 - Own host app in Swift (desktop-level window + WKWebView) will replace Plash; providers move into it so all
