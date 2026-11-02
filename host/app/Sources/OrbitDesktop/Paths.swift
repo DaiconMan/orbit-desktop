@@ -56,8 +56,15 @@ enum Settings {
         let p = UserDefaults.standard.integer(forKey: "port")
         return (1024...65535).contains(p) ? p : 47900
     }
+    /// Command Line Tools developer dir, when installed. A freshly installed Xcode whose license
+    /// has not been accepted makes the /usr/bin shims (python3, swift, …) fail, so we prefer CLT.
+    static var cltDir: String? {
+        let d = "/Library/Developer/CommandLineTools"
+        return FileManager.default.fileExists(atPath: d + "/usr/bin/python3") ? d : nil
+    }
     static var python: String {
-        ProcessInfo.processInfo.environment["ORBIT_PYTHON"] ?? UserDefaults.standard.string(forKey: "python") ?? "/usr/bin/python3"
+        ProcessInfo.processInfo.environment["ORBIT_PYTHON"] ?? UserDefaults.standard.string(forKey: "python")
+            ?? cltDir.map { $0 + "/usr/bin/python3" } ?? "/usr/bin/python3"
     }
     /// `defaults write io.github.daiconman.orbit-desktop devtools -bool true` → Safari Web Inspector.
     static var devtools: Bool { UserDefaults.standard.bool(forKey: "devtools") }

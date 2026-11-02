@@ -49,6 +49,8 @@ final class ServerProcess {
         var env = ProcessInfo.processInfo.environment
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         env["PYTHONUNBUFFERED"] = "1"
+        // the server's own subprocesses (osascript, …) must not hit an unaccepted Xcode license either
+        if let clt = Settings.cltDir { env["DEVELOPER_DIR"] = clt }
         p.environment = env
         p.standardOutput = log
         p.standardError = log

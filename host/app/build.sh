@@ -17,6 +17,12 @@ APP="$HERE/build/Orbit Desktop.app"
 IDENTITY=${ORBIT_SIGN_IDENTITY:--}
 
 cd "$HERE"
+# A selected Xcode whose license was never accepted breaks swift/xcrun; fall back to the CLT.
+CLT=/Library/Developer/CommandLineTools
+if [ -z "${DEVELOPER_DIR:-}" ] && ! xcrun --find swift >/dev/null 2>&1 && [ -d "$CLT" ]; then
+  export DEVELOPER_DIR="$CLT"
+  echo "note: using $CLT (the selected Xcode is not usable)"
+fi
 swift build -c release
 BIN=$(swift build -c release --show-bin-path)/OrbitDesktop
 

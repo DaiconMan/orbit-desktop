@@ -1,0 +1,38 @@
+#!/bin/zsh
+# Capture only the Orbit Desktop wallpaper window (not the windows in front of it) as a JPEG,
+# at most 1600 px on the long side. Needs the Screen Recording permission for the terminal.
+#
+#   tools/wallshot out.jpg        # first screen (the one at the origin)
+#   tools/wallshot out.jpg 2      # second screen, ordered left to right
+set -eu
+out=${1:?usage: tools/wallshot out.jpg [screen-number]}
+n=${2:-1}
+
+# A selected Xcode whose license was never accepted breaks swift; fall back to the CLT.
+if [[ -z ${DEVELOPER_DIR:-} ]] && ! xcrun --find swift >/dev/null 2>&1 && [[ -d /Library/Developer/CommandLineTools ]]; then
+  export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+fi
+
+# "<id> <x> <y>" for every desktop-level window owned by Orbit Desktop, main screen first, then by x.
+ids=$(swift -e '
+import CoreGraphics
+let all = CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]] ?? []
+var rows: [(Int, Double, Double)] = []
+for w in all where (w[kCGWindowOwnerName as String] as? String) == "Orbit Desktop" && ((w[kCGWindowLayer as String] as? Int) ?? 0) < -1000 {
+  let b = w[kCGWindowBounds as String] as? [String: Double] ?? [:]
+  rows.append(((w[kCGWindowNumber as String] as? Int) ?? 0, b["X"] ?? 0, b["Y"] ?? 0))
+}
+rows.sort { a, b in
+  let am = a.1 == 0 && a.2 == 0, bm = b.1 == 0 && b.2 == 0
+  return am != bm ? am : a.1 < b.1
+}
+for r in rows { print(r.0, Int(r.1), Int(r.2)) }
+' 2>/dev/null)
+id=$(print -r -- "$ids" | sed -n "${n}p" | cut -d' ' -f1)
+[[ -n $id ]] || { print -u2 "wallshot: no Orbit Desktop window for screen $n (is the app running?)"; exit 1; }
+
+tmp=$(mktemp -t wallshot).png
+trap 'rm -f "$tmp"' EXIT
+screencapture -x -o -l "$id" "$tmp"
+sips -s format jpeg -s formatOptions 82 -Z 1600 "$tmp" --out "$out" >/dev/null
+print -r -- "${out:A}"

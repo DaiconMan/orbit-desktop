@@ -14,6 +14,7 @@ let package = Package(
                 .linkedFramework("AppKit"), .linkedFramework("WebKit"), .linkedFramework("EventKit"),
                 .linkedFramework("CoreAudio"), .linkedFramework("AudioToolbox"), .linkedFramework("Accelerate"),
                 .linkedFramework("IOKit"), .linkedFramework("SystemConfiguration"),
+                .linkedFramework("SwiftUI"), .linkedFramework("UserNotifications"),
             ]
         ),
     ]

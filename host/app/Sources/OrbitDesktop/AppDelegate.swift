@@ -7,6 +7,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let system = SystemProvider()
     private let calendar = CalendarProvider()
     private var audioBox: AnyObject?  // AudioProvider (macOS 14.2+)
+    private let eew = EEWProvider()
+    private let banner = EEWBanner()
+    private let notifier = EEWNotifier()
+    private let settingsWindow = SettingsWindowController()
+    private var eewState = EEWProvider.Snapshot(error: "starting")
+    private var eewLine = NSMenuItem(title: "緊急地震速報: 起動中…", action: nil, keyEquivalent: "")
     private var statusItem: NSStatusItem!
     private var statusLine = NSMenuItem(title: "Starting…", action: nil, keyEquivalent: "")
     private var configVersion = ""
@@ -17,8 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ note: Notification) {
         Paths.ensureDirs()
+        AppSettings.migrateIfNeeded()
         setUpMenu()
         system.start()
+        startEEW()
         server.onStateChange = { [weak self] st in self?.serverStateChanged(st) }
         server.start()
         // the runtime page polls the config itself; we only need it to decide which providers run
@@ -31,6 +39,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         calendar.stop()
         // The tap and its aggregate device are private to this process and vanish with it;
         // tearing them down here could block quitting.
+    }
+
+    // MARK: earthquake early warning
+    private func startEEW() {
+        eew.onUpdate = { [weak self] s in
+            guard let self else { return }
+            self.eewState = s
+            self.banner.update(s)
+            self.refreshEEWLine()
+        }
+        eew.onNotify = { [weak self] title, body in self?.notifier.post(title: title, body: body) }
+        settingsWindow.model.onNotifyEnabled = { [weak self] in self?.notifier.requestAuthorization() }
+        settingsWindow.model.onSaved = { [weak self] in
+            // the server re-reads settings.json (wallpaper.hidden / page_seconds) on its own
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.desktop.reload() }
+        }
+        eew.start()
+    }
+
+    private func refreshEEWLine() {
+        let s = eewState
+        if s.disabled { eewLine.title = "緊急地震速報: オフ" }
+        else if s.connected { eewLine.title = "緊急地震速報: 接続中（\(s.msgs) 件受信）" }
+        else { eewLine.title = "緊急地震速報: ⚠︎ 未接続 – \(s.error ?? "")" }
     }
 
     // MARK: server / config
@@ -98,10 +130,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         m.addItem(withTitle: "Orbit Desktop \(version)", action: nil, keyEquivalent: "").isEnabled = false
         statusLine.isEnabled = false
         m.addItem(statusLine)
+        eewLine.isEnabled = false
+        m.addItem(eewLine)
         m.addItem(.separator())
         m.addItem(item("Reload Wallpaper", #selector(reload), "r"))
-        m.addItem(item("Edit layout.yaml…", #selector(editLayout), ","))
+        m.addItem(item("壁紙の設定…", #selector(openSettings), ","))
+        m.addItem(item("Edit layout.yaml…", #selector(editLayout), ""))
         m.addItem(item("Open Preview in Browser", #selector(openPreview), ""))
+        m.addItem(item("緊急地震速報のテスト表示", #selector(testEEW), ""))
         m.addItem(.separator())
         m.addItem(item("Show Server Log", #selector(showLog), ""))
         m.addItem(item("Restart Server", #selector(restartServer), ""))
@@ -119,6 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         refreshStatus()
+        refreshEEWLine()
         menu.items.first { $0.action == #selector(toggleLogin) }?.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
 
@@ -139,6 +176,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func reload() { desktop.reload() }
+
+    @objc private func openSettings() { settingsWindow.show() }
+
+    /// Same test message as the prototype's menu: injected by EEWProvider (local, so dry-run music pause).
+    @objc private func testEEW() {
+        let p = EEWProvider.testFile
+        let j = #"{"code":556,"_pause":false,"issue":{"eventId":"TEST-MENU-\#(Int(Date().timeIntervalSince1970))","serial":"1"},"earthquake":{"originTime":"","hypocenter":{"name":"東京湾","depth":40,"magnitude":6.1}},"cancelled":false,"areas":[{"pref":"東京都","name":"東京都23区","scaleFrom":50,"scaleTo":55,"kindCode":"10"}]}"#
+        try? FileManager.default.createDirectory(at: p.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? j.data(using: .utf8)?.write(to: p, options: .atomic)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { try? FileManager.default.removeItem(at: p) }
+    }
 
     @objc private func editLayout() {
         let fm = FileManager.default

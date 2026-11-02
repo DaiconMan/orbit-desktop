@@ -17,9 +17,9 @@
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Orbit Desktop analyses the system audio output (levels and frequency bands only, nothing is recorded or sent anywhere) so the wallpaper can react to your music.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Orbit Desktop shows today's and tomorrow's events in the schedule widget. Events never leave this Mac.</string>
+	<string>Orbit Desktop shows the coming week of events in the schedule widget. Events never leave this Mac.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Orbit Desktop asks Music or Spotify for the current track so the now-playing widget can show it.</string>
+	<string>Orbit Desktop asks Music or Spotify for the current track so the now-playing widget can show it, and pauses them during a strong Earthquake Early Warning (if enabled).</string>
 	<key>NSLocationUsageDescription</key>
 	<string>Orbit Desktop can place the night sky and weather at your current location (only if you enable it in layout.yaml).</string>
 </dict>
