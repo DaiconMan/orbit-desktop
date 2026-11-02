@@ -1,0 +1,3 @@
+.bt .row { grid-template-columns: 1fr 4em 3.2em; height: calc(var(--vh) * 2.9); }
+.bt .row .k { opacity: .8; overflow: hidden; text-overflow: ellipsis; }
+.bt .row .sub { grid-column: 1 / 4; font-size: var(--t-xs); opacity: .42; letter-spacing: .08em; margin-top: calc(var(--vh) * -.6); }

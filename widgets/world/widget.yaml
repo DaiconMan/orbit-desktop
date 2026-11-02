@@ -1,0 +1,24 @@
+id: world
+name: World Clock
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "World clock tiles: the time in a list of time zones, the hour offset from your local time and a 昨日 / 明日 mark when the date differs."
+needs: [time]
+default_size:
+  width: auto
+  height: auto
+settings:
+  clocks:
+    type: list
+    default:
+      - { label: TOKYO, tz: Asia/Tokyo }
+      - { label: UTC, tz: UTC }
+      - { label: NEW YORK, tz: America/New_York }
+      - { label: LONDON, tz: Europe/London }
+    description: "Tiles, each {label, tz} with an IANA time zone (two per row)"
+  home_tz:
+    type: string
+    default: ""
+    description: "Reference zone for the offsets and day marks (empty = system time zone)"

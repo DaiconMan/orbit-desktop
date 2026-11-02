@@ -1,0 +1,12 @@
+id: ops
+name: Ops (personal)
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+unofficial: true
+description: "PERSONAL / UNOFFICIAL. GitHub review requests and failing CI, RFCs awaiting approval, local Claude Code sessions and the remaining weekly Claude usage."
+needs: [github, rfc, sessions, claudeUsage]
+default_size:
+  width: 16vw
+  height: auto

@@ -1,0 +1,18 @@
+id: recent
+name: Recent Tracks
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "The last few tracks you played (local history kept by the now-playing provider), with how long ago; the current track is marked 再生中 / 一時停止. Hidden while the history is empty."
+needs: [time, recent, nowPlaying]
+default_size:
+  width: auto
+  height: auto
+settings:
+  count:
+    type: integer
+    default: 5
+    min: 1
+    max: 10
+    description: "Tracks shown"

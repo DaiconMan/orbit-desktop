@@ -4,7 +4,8 @@ Each provider runs in a daemon thread, keeps its latest value in memory and
 never blocks HTTP handlers. Providers only *read* local state (ps, vm_stat,
 netstat, AppleScript to already-running players, JSON files written by the
 helpers) plus the few explicitly configured network calls (Open-Meteo, and
-opt-in: ipinfo.io, iTunes Search, networkQuality).
+opt-in: ipinfo.io, iTunes Search, networkQuality). The extra panels (mac, network,
+iss, quakes, ...) live in providers_extra.py.
 
 Nothing here is personal: ping targets, location, file paths all come from
 layout.yaml (`providers:`).
@@ -22,6 +23,7 @@ import urllib.parse
 import urllib.request
 
 from orbit_config import CACHE_DIR
+from providers_extra import ExtraLoops
 
 UA = "OrbitDesktop/0.1 (local dev server)"
 
@@ -62,7 +64,10 @@ HOST_SYSTEM_FIELDS = ("cpu", "load", "mem", "disk", "net")
 HOST_FRESH_SECONDS = 10
 
 
-class Providers:
+class Providers(ExtraLoops):
+    sh = staticmethod(sh)
+    http_get = staticmethod(http_get)
+
     def __init__(self, cfg: dict, host_dir: str | None = None):
         self.cfg = cfg
         # When the Swift host app runs us, it measures system stats, audio and calendar natively
@@ -77,6 +82,9 @@ class Providers:
         self.location = None
         self.weather = None
         self.claude = None
+        self.extra = {}            # generic signals (orbit_config.GENERIC_SIGNALS): name -> latest JSON value
+        self._mac = None           # mac_loop / active_loop halves of the `mac` signal
+        self._active = None
         self._remote_art_cache = {}
         os.makedirs(CACHE_DIR, exist_ok=True)
 
@@ -94,6 +102,7 @@ class Providers:
             loops.append(self.weather_loop)
         if p["claude_usage"]["enabled"]:
             loops.append(self.claude_loop)
+        loops += self.extra_loops()
         for fn in loops:
             threading.Thread(target=self._guard(fn), daemon=True, name=fn.__name__).start()
 
@@ -347,6 +356,7 @@ return "ok"
                     self.now.update({k: v for k, v in p.items() if k != "art_url"}, key=key, ts=time.time(),
                                     hasArt=bool(self.art["bytes"]) and self.art["key"] == key)
                 if changed:
+                    self.record_recent(p)
                     self._update_art(key, p)
             else:
                 with self.lock:
@@ -382,30 +392,63 @@ return "ok"
                 self.location = loc
             time.sleep(1800 if self.cfg["location"]["mode"] != "fixed" else 86400)
 
+    WEATHER_KEYS = ("current", "current_units", "hourly", "hourly_units", "daily", "daily_units", "minutely_15",
+                    "minutely_15_units", "timezone", "timezone_abbreviation", "utc_offset_seconds", "elevation")
+
     def weather_loop(self):
-        """Open-Meteo (no API key, CC BY 4.0 - attribution shown by the weather widget)."""
+        """Open-Meteo (no API key, CC BY 4.0 - attribution shown by the weather widget): forecast, plus
+        optionally surface pressure (past 12 h + next 24 h) and air quality, as sub-keys `pressure` / `air`."""
+        c = self.cfg["weather"]
         while True:
             loc = self.location
             if not loc:
                 time.sleep(1)
                 continue
+            ll = {"latitude": f"{loc['lat']:.2f}", "longitude": f"{loc['lon']:.2f}"}  # ~1 km: enough for weather
             q = urllib.parse.urlencode({
-                "latitude": f"{loc['lat']:.2f}", "longitude": f"{loc['lon']:.2f}",  # ~1 km: enough for weather
+                **ll,
                 "current": "temperature_2m,weather_code,is_day",
                 "hourly": "temperature_2m,weather_code,precipitation_probability",
-                "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+                "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
+                         "sunrise,sunset,uv_index_max",
+                "minutely_15": "precipitation", "forecast_minutely_15": 8,
                 "timezone": "auto", "forecast_days": 5, "forecast_hours": 12})
             try:
                 w = json.loads(http_get("https://api.open-meteo.com/v1/forecast?" + q, timeout=10))
-                w = {k: w.get(k) for k in ("current", "hourly", "daily", "timezone", "current_units")}
-                w["place"] = loc["name"]
-                w["fetched"] = time.time()
-                w["attribution"] = "Weather data by Open-Meteo.com (CC BY 4.0)"
-                with self.lock:
-                    self.weather = w
-                time.sleep(self.cfg["weather"]["refresh_minutes"] * 60)
             except Exception:
                 time.sleep(120)
+                continue
+            w = {k: w.get(k) for k in self.WEATHER_KEYS}
+            w["place"] = loc["name"]
+            w["place_src"] = loc.get("source")
+            w["fetched"] = time.time()
+            w["attribution"] = "Weather data by Open-Meteo.com (CC BY 4.0)"
+            old = self.weather or {}
+            w["pressure"], w["air"] = old.get("pressure"), old.get("air")
+            if c["pressure"]:
+                try:
+                    pq = urllib.parse.urlencode({**ll, "hourly": "surface_pressure", "past_hours": 12,
+                                                 "forecast_hours": 24, "timezone": "auto"})
+                    h = json.loads(http_get("https://api.open-meteo.com/v1/forecast?" + pq, timeout=10)).get("hourly") or {}
+                    if h.get("time") and h.get("surface_pressure"):
+                        w["pressure"] = {"time": h["time"], "hpa": h["surface_pressure"], "at": time.time()}
+                except Exception:
+                    pass
+            else:
+                w["pressure"] = None
+            if c["air"]:
+                try:
+                    aq = urllib.parse.urlencode({**ll, "current": "pm2_5,us_aqi"})
+                    cur = json.loads(http_get("https://air-quality-api.open-meteo.com/v1/air-quality?" + aq,
+                                              timeout=10)).get("current") or {}
+                    w["air"] = {"pm25": cur.get("pm2_5"), "aqi": cur.get("us_aqi"), "at": time.time()}
+                except Exception:
+                    pass
+            else:
+                w["air"] = None
+            with self.lock:
+                self.weather = w
+            time.sleep(c["refresh_minutes"] * 60)
 
     # ------------------------------------------------------------------ unofficial: Claude usage
     def claude_loop(self):
@@ -443,7 +486,28 @@ return "ok"
                 return self.weather
             if name == "claudeUsage":
                 return self.claude
+            if name == "alerts":
+                return self._host_alerts()
+            if name in self.extra:
+                return json.loads(json.dumps(self.extra[name]))
         return None
+
+    def set_extra(self, name, value):
+        with self.lock:
+            self.extra[name] = value
+
+    def _host_alerts(self):
+        """EEW / tsunami state written by the host app (host_dir/alerts.json). Stale file -> no alerts."""
+        empty = {"eew": None, "tsunami": None, "ws": None}
+        if not self.host_dir:
+            return empty
+        try:
+            j = json.loads(read_small(os.path.join(self.host_dir, "alerts.json"), 512_000) or b"{}")
+            if time.time() - float(j.get("ts", 0)) < 15:
+                return j
+        except (ValueError, TypeError, AttributeError):
+            pass
+        return empty
 
     def artwork(self):
         with self.lock:

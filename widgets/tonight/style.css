@@ -1,0 +1,5 @@
+/* tonight: moon phase header */
+.moonhd { display: flex; align-items: center; gap: calc(var(--vh) * 1.4); margin-bottom: calc(var(--vh) * 1); }
+.moonhd svg { width: calc(var(--vh) * 4.4); height: calc(var(--vh) * 4.4); flex: none; }
+.moonhd b { display: block; font: 400 var(--t-l) var(--disp); }
+.moonhd span { display: block; font-size: var(--t-xs); letter-spacing: .1em; opacity: .5; margin-top: calc(var(--vh) * .3); white-space: nowrap; }

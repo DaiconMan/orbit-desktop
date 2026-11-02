@@ -1,0 +1,11 @@
+id: rain
+name: Rain 2h
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Precipitation for the next 2 hours in 15-minute steps; hidden while it stays dry."
+needs: [weather]
+default_size:
+  width: 16vw
+  height: auto

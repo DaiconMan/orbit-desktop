@@ -1,10 +1,10 @@
 id: now-playing
 name: Now Playing
-version: "1.0.0"
+version: "1.1.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Artwork, title, artist, album and progress of the track playing in Apple Music or Spotify. Hidden when nothing plays."
+description: "Artwork, title, artist, album and progress of the track playing in Apple Music or Spotify. Glides in when playback starts and slowly dissolves when it stops."
 needs: [nowPlaying]
 default_size:
   width: auto
@@ -21,7 +21,7 @@ settings:
     default: true
   max_width:
     type: number
-    default: 44
+    default: 32
     min: 10
     max: 90
     description: "Max text width in host vw"

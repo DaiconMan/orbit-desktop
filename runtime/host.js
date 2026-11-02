@@ -118,6 +118,11 @@
       if (f.auto.width) f.iframe.style.width = w + 'px';
       if (f.auto.height) f.iframe.style.height = h + 'px';
       f.slot.classList.remove('pending');
+      f.slot.classList.toggle('empty', !!f.zoned && h < 2);   // nothing to show: collapse inside a zone
+      layoutChanged();
+    } else if (m.type === 'visible') {
+      f.slot.classList.toggle('off', !m.on);
+      layoutChanged();
     } else if (m.type === 'error') {
       const msg = `${f.id}: ${String(m.message).slice(0, 300)}`;
       if (!runtimeErrors.includes(msg) && runtimeErrors.length < 20) { runtimeErrors.push(msg); renderProblems(); }
@@ -159,10 +164,78 @@
     if (tf.length) s.transform = tf.join(' ');
     s.zIndex = 10 + (p.z || 0);
   }
+  /* zones: widgets flow vertically inside a zone (no overlaps); a zone with rotate_seconds holds pages of
+     columns that crossfade. Hidden or empty widgets collapse; pages with nothing visible are skipped. */
+  const zoneEls = {};
+  function renderZones(zones) {
+    const host = $('widgets');
+    for (const [name, z] of Object.entries(zones || {})) {
+      const el = document.createElement('div'); el.className = 'zone'; el.dataset.zone = name;
+      place(el, z); el.style.width = cssLen(z.width); el.style.setProperty('--gap', cssLen(z.gap)); el.style.zIndex = 10;
+      const paged = !!z.rotate_seconds;
+      if (paged) { el.classList.add('paged'); el.style.height = z.height === 'auto' ? '40vh' : cssLen(z.height); }
+      el.style.setProperty('--cols', z.columns); el.style.setProperty('--colgap', cssLen(z.column_gap));
+      host.appendChild(el);
+      zoneEls[name] = { el, z, paged, pages: [], cur: 0, dots: null };
+    }
+  }
+  function zoneColumn(name, page, column) {
+    const Z = zoneEls[name];
+    while (Z.pages.length <= page) {
+      const p = document.createElement('div'); p.className = 'page';
+      for (let c = 0; c < Z.z.columns; c++) { const col = document.createElement('div'); col.className = 'col'; p.appendChild(col); }
+      Z.el.appendChild(p); Z.pages.push(p);
+    }
+    return Z.pages[page].children[column];
+  }
+  const pageVisible = p => [...p.querySelectorAll('.slot')].some(s => !s.classList.contains('off') && !s.classList.contains('empty'));
+  function showPage(Z, i) {
+    Z.cur = i;
+    Z.pages.forEach((p, k) => p.classList.toggle('on', k === i));
+    if (Z.dots) [...Z.dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
+  }
+  function startRotation() {
+    for (const Z of Object.values(zoneEls)) {
+      if (!Z.paged || !Z.pages.length) continue;
+      const start = (+new URLSearchParams(location.search).get('page') || 0) % Z.pages.length;   // ?page=N starts on page N
+      if (Z.pages.length > 1) {
+        Z.dots = document.createElement('div'); Z.dots.className = 'dots';
+        Z.pages.forEach(() => Z.dots.appendChild(document.createElement('i')));
+        Z.el.appendChild(Z.dots);
+      }
+      showPage(Z, start);
+      setInterval(() => {
+        for (let k = 1; k <= Z.pages.length; k++) {
+          const n = (Z.cur + k) % Z.pages.length;
+          if (pageVisible(Z.pages[n]) || k === Z.pages.length) { showPage(Z, n); break; }
+        }
+      }, Z.z.rotate_seconds * 1000);
+    }
+  }
+  let layoutTimer = null;
+  function layoutChanged() {   // dots for pages that have nothing visible are hidden
+    clearTimeout(layoutTimer);
+    layoutTimer = setTimeout(() => {
+      for (const Z of Object.values(zoneEls)) if (Z.dots) Z.pages.forEach((p, k) => { Z.dots.children[k].hidden = !pageVisible(p); });
+    }, 300);
+  }
+
   function renderWidgets(list) {
-    const host = $('widgets'); host.textContent = '';
+    const host = $('widgets');
     for (const w of list) {
+      const zoned = !!(w.zone && zoneEls[w.zone]);
       const slot = document.createElement('div'); slot.className = 'slot pending'; slot.dataset.widget = w.use;
+      if (w.dim === false) slot.classList.add('nodim');
+      if (zoned) {
+        slot.classList.add('inzone');
+        const Z = zoneEls[w.zone];
+        (Z.paged ? zoneColumn(w.zone, w.page, w.column) : Z.el).appendChild(slot);
+        const colW = Math.round(slot.getBoundingClientRect().width) || Math.round(innerWidth * .3);
+        const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, zoned: true, auto: { width: false, height: true },
+          init: { settings: w.settings, needs: w.needs, sizing: { width: 'zone', height: 'auto' }, maxWidth: colW } }, slot);
+        f.iframe.style.width = '100%'; f.iframe.style.height = '10px';
+        continue;
+      }
       place(slot, w.position); host.appendChild(slot);
       const auto = { width: w.position.width === 'auto', height: w.position.height === 'auto' };
       const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, auto,
@@ -176,7 +249,19 @@
   /* ------------------------------------------------------------ signals */
   function publish(name, data) {
     last[name] = data;
+    if (name === 'alerts') onAlerts(data);
     for (const f of frames) if (f.ready && !f.dead && f.needs.includes(name)) send(f, { type: 'signal', name, data });
+  }
+  /* alerts: dim everything else while an EEW / tsunami warning is shown, and flash a red glow around the
+     whole screen once per new (not cancelled) EEW, like the prototype. Widgets can't draw outside their frame. */
+  let edgeFor = '';
+  function onAlerts(a) {
+    document.body.classList.toggle('alerting', !!(a && (a.eew || a.tsunami)));
+    const e = a && a.eew;
+    if (e && !e.cancelled && e.id && e.id !== edgeFor) {
+      edgeFor = e.id;
+      const ed = $('edge'); ed.classList.remove('go'); void ed.offsetWidth; ed.classList.add('go');
+    }
   }
   const needed = () => new Set(frames.flatMap(f => f.needs));
   function every(ms, fn) { fn(); return setInterval(fn, ms); }
@@ -240,6 +325,12 @@
     if (n.has('location')) slowPoll(60000, '/api/signals/location', 'location');
     if (n.has('claudeUsage') && p.claudeUsage) slowPoll(30000, '/api/signals/claude-usage', 'claudeUsage');
     if (n.has('audio')) startAudio();
+    for (const [name, sg] of Object.entries(cfg.signals || {})) if (n.has(name)) slowPoll(sg.interval, sg.path, name);
+  }
+  function nightDim() {   // theme.night_dim: 00:00-06:00 every dimmable widget settles to ~65 %
+    if (!theme.night_dim) return;
+    const tick = () => $('widgets').classList.toggle('calm', new Date().getHours() < 6);
+    tick(); setInterval(tick, 60000);
   }
 
   /* ------------------------------------------------------------ boot */
@@ -252,7 +343,10 @@
     const rs = document.documentElement.style;
     rs.setProperty('--font', theme.font); rs.setProperty('--mono', theme.mono_font); rs.setProperty('--fg', theme.text_color);
     renderBackground(cfg.background);
+    renderZones(cfg.zones);
     renderWidgets(cfg.widgets);
+    startRotation();
+    nightDim();
     renderProblems();
     startSignals();
     addEventListener('resize', broadcastTheme);

@@ -1,0 +1,2 @@
+/* sky: square alt/az chart */
+.skyc { display: block; width: calc(var(--vh) * 19); height: calc(var(--vh) * 19); margin: 0 auto; }

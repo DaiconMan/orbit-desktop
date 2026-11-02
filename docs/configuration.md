@@ -34,6 +34,7 @@ JSON. The Swift host will use its own YAML parser restricted to the same subset.
 version: 1          # optional, must be 1
 theme: {...}
 background: {...}
+zones: {...}        # optional: areas where widgets flow without overlapping (and rotating pages)
 widgets: [...]
 providers: {...}
 ```
@@ -48,6 +49,7 @@ providers: {...}
 | `text_color` | `#ffffff` | |
 | `locale` | `auto` | BCP-47 tag (`ja-JP`, `en-GB`, …). `auto` uses the system language. Widgets ship en + ja strings. |
 | `hour12` | `false` | |
+| `night_dim` | `false` | From 00:00 to 06:00, every widget settles to about 65 % opacity, except widgets with `dim: false`. |
 
 Plugins receive the theme as CSS variables: `--font`, `--mono`, `--fg`, `--a`/`--b`/`--c`
 (`r,g,b` triplets, use `rgb(var(--c))`), and `--vh` / `--vw`, the host screen's units.
@@ -119,12 +121,60 @@ widgets:
 A bare anchor is also accepted: `position: top-right`. For `*-center` / `center`, the offsets
 shift the widget from the centre.
 
+Other widget keys:
+* `dim: false` exempts a widget from night dimming. While an earthquake or tsunami alert is
+  shown, the other widgets fade to 18 %; this widget does not.
+* `zone`, `page` and `column` place the widget in a zone (see below). With `zone`, `position` is
+  ignored.
+
+## `zones`
+
+A zone is an area where widgets stack vertically in list order. When a widget hides itself (it
+has nothing to show) or grows, the others move up or down, so they never overlap. A zone with
+`rotate_seconds` holds **pages** of `columns` columns that crossfade.
+
+```yaml
+zones:
+  tl: { anchor: top-left,  x: 6vw, y: 6vh, width: 21vw }
+  tr: { anchor: top-right, x: 6vw, y: 6vh, width: 25vw, gap: 3.4vh }
+  c:  { anchor: top-left, x: 30.5vw, y: 6vh, width: 35vw, height: 41vh, columns: 2, column_gap: 3vw, rotate_seconds: 30 }
+widgets:
+  - { use: weather, zone: tl }
+  - { use: load, zone: tr }
+  - { use: tonight, zone: c, page: 0, column: 0 }
+  - { use: sky, zone: c, page: 0, column: 1 }
+```
+
+| key | default | notes |
+|---|---|---|
+| `anchor`, `x`, `y` | `top-left`, 0, 0 | same as a widget position |
+| `width` | `20vw` | widgets in the zone get this width, or the column width |
+| `height` | `auto` | needed for a paged zone (default 40vh) |
+| `gap` | `3.4vh` | vertical gap between widgets |
+| `columns`, `column_gap` | 1, `3vw` | columns per page |
+| `rotate_seconds` | none | makes the zone paged; pages with nothing visible are skipped |
+
+`?page=N` in the page URL starts every paged zone on page N, which is handy for screenshots.
+
+## `settings.json` (written by the host app)
+
+The host app's settings window writes `~/.config/orbit-desktop/settings.json`. The server applies
+it on top of `layout.yaml`:
+* `wallpaper.hidden`: plugin ids to leave out
+* `wallpaper.page_seconds`: replaces every zone's `rotate_seconds`
+* `eew`: Earthquake Early Warning options, used only by the host app
+
+```json
+{ "wallpaper": { "hidden": ["news"], "page_seconds": 30 },
+  "eew": { "enabled": true, "notify": true, "pause_music": true, "min_intensity": null, "pause_min_intensity": "5弱" } }
+```
+
 ## `providers`
 
 | block | keys (defaults) |
 |---|---|
 | `location` | `mode: fixed` (`fixed` / `corelocation` / `ip`), `lat`, `lon`, `name`, `corelocation_cli: /opt/homebrew/bin/CoreLocationCLI` |
-| `weather` | `enabled: true`, `refresh_minutes: 15` |
+| `weather` | `enabled: true`, `refresh_minutes: 15`, `air: true` (Open-Meteo air quality), `pressure: true` (surface pressure, past 12 h + next 24 h) |
 | `system` | `interface: auto` |
 | `ping` | `targets: []` (each `{name, host, method: icmp\|tcp, port: 22}`), `interval_seconds: 10`, `external_file: null` (JSON from `host/helpers/tcp-latency.sh`) |
 | `speedtest` | `enabled: false`, `interval_minutes: 60`, `only_on_ac_power: true` |
@@ -132,5 +182,29 @@ shift the widget from the centre.
 | `calendar` | `file: ~/Library/Caches/orbit-desktop/calendar.json` |
 | `audio` | `file: ~/Library/Caches/orbit-desktop/audiopulse.json` |
 | `claude_usage` | `enabled: false`. **UNOFFICIAL**: reads an undocumented field of `~/.claude.json`. |
+| `mac` | `enabled: true`, `active: true` (count minutes with keyboard/mouse input today) |
+| `network` | `enabled: true`, `home_subnet: null` (e.g. `"192.168.1.0/24"`), `home_ssid: null`, `home_interface: auto`, `mounts: []` (SMB share names, e.g. `[Share, Media]`), `interval_seconds: 5` |
+| `recent` | `enabled: true`, `max_items: 8` (local history of `nowPlaying`, kept in the cache folder) |
+| `iss` | `enabled: false` |
+| `quakes` | `enabled: false`, `min_intensity: "3"` (JMA shindo `1`…`7`, quote `"5弱"`), `hours: 24` |
+| `holidays` | `enabled: false`, `country: JP` (only JP for now) |
+| `fx` | `enabled: false`, `base: USD`, `quote: JPY` |
+| `news` | `enabled: false`, `url: https://www.nhk.or.jp/rss/news/cat0.xml` (any https RSS 2.0 / Atom feed), `max_items: 8` |
+| `bluetooth` | `enabled: false` (connected devices + battery, via `system_profiler` every 5 min) |
+| `onthisday` | `enabled: false`, `lang: ja` (`ja` parses the ja.wikipedia day article; other codes use the Wikimedia feed) |
+| `launches` | `enabled: false` (The Space Devs, cached 3 h) |
+| `kp` | `enabled: false` (NOAA SWPC) |
+| `github` | `enabled: false`, `gh_path: gh` (looked up in `PATH`, then `/opt/homebrew/bin`, `/usr/local/bin`). Also used by `contrib` and `rfc`. Needs `gh auth login`. |
+| `contrib` | `enabled: false` (your contribution calendar, via `gh`) |
+| `sessions` | `enabled: false` (running Claude Code sessions: folder basename and kind only) |
+| `rfc` | `enabled: false`, `repo: null` (owner/name, required), `dir: rfc`, `file_prefix: "RFC-"`, `status_label: Status`, `pending_text: "Pending approval"`, `user_action_text: null`. Lists the newest 25 `<file_prefix>*.md` files whose table row `\| <status_label> \| … \|` contains `pending_text`; `user_action` is true when it also contains `user_action_text`. |
+
+Privacy-first defaults: only `mac`, `network` (local commands only) and `recent` are on. Every
+provider that calls the network or shows personal data is off until you enable it, and nothing
+personal (hosts, subnets, shares, repos) has a built-in default. Enabling `github`, `contrib`,
+`rfc` or `sessions` adds a start-up warning. `network.home` is `null` (unknown) unless
+`home_subnet` or `home_ssid` is set. LAN latency: add the host to `ping.targets` with
+`method: tcp`; under the host app the server connects directly (the old `external_file` helper is
+only needed if macOS Local Network privacy blocks it).
 
 `docs/security.md` lists every outbound request and which setting turns it on.

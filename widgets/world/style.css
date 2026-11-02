@@ -1,0 +1,2 @@
+/* world clock: thinner, slightly larger tile numbers */
+.wc b { font-weight: 200; font-size: calc(var(--vh) * 3); }

@@ -1,4 +1,8 @@
-.sf-vignette, .sf-heat, .sf-pulse, .sf-scan { position: fixed; inset: 0; pointer-events: none; }
+.sf-art, .sf-vignette, .sf-heat, .sf-pulse, .sf-scan { position: fixed; inset: 0; pointer-events: none; }
+/* blurred artwork backdrop: 4 s fade in, 40 s linear fade out (backgrounds are full-screen frames: vh/vw = screen) */
+.sf-art { inset: -15%; opacity: 0; transition: opacity 40s linear;
+  background-size: cover; background-position: center; filter: blur(110px) saturate(.9) brightness(.6); }
+.sf-art.on { opacity: .16; transition: opacity 4s ease; }
 .sf-vignette { background: radial-gradient(ellipse at 35% 55%, transparent 45%, rgba(0,0,0,.45) 100%); }
 .sf-scan { opacity: .03; background: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px); }
 /* load heat: glow from the bottom that grows and warms with load */

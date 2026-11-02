@@ -1,0 +1,3 @@
+.m-ops .cw { margin-top: calc(var(--vh) * 2); }
+/* the zone column is a hard edge here (the prototype let "CLAUDE CODE" spill into the gap), so the tile labels are tracked a little tighter */
+.m-ops .tile > span { letter-spacing: .06em; }

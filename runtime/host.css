@@ -15,3 +15,24 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; col
 .problems ul { margin: 0; padding-left: 1.2em; }
 .problems li.warn { color: #ffd38a; }
 .problems small { opacity: .6; display: block; margin-top: .8vh; }
+
+/* zones: vertical flow, no overlaps; paged zones crossfade between pages of columns */
+.zone { position: absolute; display: flex; flex-direction: column; gap: var(--gap, 3.4vh); }
+.zone.paged { display: block; }
+.zone .page { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+  column-gap: var(--colgap, 3vw); align-items: start; opacity: 0; transition: opacity 2.4s ease; overflow: hidden; }
+.zone .page.on { opacity: 1; }
+.zone .col { display: flex; flex-direction: column; gap: var(--gap, 3.4vh); min-width: 0; }
+.zone .dots { position: absolute; left: 0; bottom: 0; display: flex; gap: .8vh; }
+.zone .dots i { width: .45vh; height: .45vh; border-radius: 50%; background: #fff; opacity: .18; transition: opacity 2.4s ease; }
+.zone .dots i.on { opacity: .6; }
+.slot.inzone { position: relative; width: 100%; }
+.slot.inzone iframe { width: 100%; }
+.slot.off, .slot.empty { display: none; }
+/* night dim and alert dim (widgets with dim: false, e.g. the alert overlay, are exempt) */
+.slot, .zone { transition: opacity 8s ease; }
+#widgets.calm .slot:not(.nodim) { opacity: .65; }
+body.alerting #widgets .slot:not(.nodim) { opacity: .18; transition: opacity .8s ease; }
+.edge { position: fixed; inset: 0; z-index: 900; pointer-events: none; opacity: 0; box-shadow: inset 0 0 14vh 1vh rgba(255,50,50,.55); }
+.edge.go { animation: edgeonce 3.2s ease-out 1; }
+@keyframes edgeonce { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }

@@ -1,0 +1,11 @@
+id: alerts
+name: Alerts (緊急地震速報 / 津波)
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Full-width Earthquake Early Warning and tsunami banner with a seconds counter and a red edge flash once per new event. Zero height when nothing is active."
+needs: [alerts]
+default_size:
+  width: 100vw
+  height: auto

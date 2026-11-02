@@ -115,11 +115,18 @@ received the poll, in ms) before forwarding.
 This covers today and tomorrow. `status` is `busy` or `free`.
 
 ### `weather` → `GET /api/signals/weather` (60 s; the host refreshes upstream every `refresh_minutes`)
-This is the Open-Meteo forecast subset `current`, `hourly` (12 h), `daily` (5 d), `timezone` and
-`current_units`, plus the fields below. Coordinates are deliberately absent.
+This is the Open-Meteo forecast: `current`, `hourly` (12 h), `daily` (5 d, incl. `sunrise`, `sunset`,
+`uv_index_max`), `minutely_15` (`precipitation`, next 2 h), their `*_units`, `timezone`,
+`timezone_abbreviation`, `utc_offset_seconds` and `elevation`, plus the fields below. Coordinates are
+deliberately absent.
 ```json
-{ "place": "GREENWICH · LONDON", "fetched": 1700000000.0, "attribution": "Weather data by Open-Meteo.com (CC BY 4.0)" }
+{ "place": "GREENWICH · LONDON", "place_src": "config", "fetched": 1700000000.0,
+  "attribution": "Weather data by Open-Meteo.com (CC BY 4.0)",
+  "air": { "pm25": 12.3, "aqi": 41, "at": 1700000000.0 },
+  "pressure": { "time": ["2026-11-02T13:00", "…"], "hpa": [1012.4, "…"], "at": 1700000000.0 } }
 ```
+`air` (`providers.weather.air`) and `pressure` (`providers.weather.pressure`, hourly, past 12 h + next
+24 h) are `null` when disabled or not fetched yet.
 
 ### `location` → `GET /api/signals/location` (60 s)
 `{"lat": 51.4779, "lon": -0.0015, "name": "GREENWICH · LONDON", "source": "config" | "corelocation" | "ip"}`
@@ -139,6 +146,30 @@ every 15 s and allows at most 8 concurrent streams (503 beyond that).
 `{"rows": [{"key": "five_hour", "pct": 42.0, "resets": "2026-11-02T05:00:00Z"}], "fetched": 1700000000.0}`
 
 Returns 404 unless `providers.claude_usage.enabled: true`.
+
+### Panel signals (generic, `GET /api/signals/<name>`)
+Served from `orbit_config.GENERIC_SIGNALS`; each returns 404 while its `providers.<name>.enabled` is
+false, and `null` until the first fetch. Times are Unix seconds unless noted.
+
+| signal (poll) | payload |
+|---|---|
+| `mac` (30 s) | `{ac, batt, batt_state, batt_left: "h:mm"\|null, tm_running, tm_pct\|null, tm_last, disk_total, disk_free, active: {date, minutes, idle}\|null}` (keys may be absent on desktops without a battery / Time Machine) |
+| `network` (5 s) | `{home: {home: bool\|null, ip}, tailscale: {up, ip}, mounts: {<share>: bool}, ping: {<name>: ms\|null}, speed: {dl, ul, at}\|null}` |
+| `alerts` (1 s) | `{eew, tsunami, ws, pref, eewEnabled}`, written by the host app (`host_dir/alerts.json`) |
+| `iss` (10 s) | `{lat, lon, alt, vis, ts}` |
+| `quakes` (60 s) | `[{ts, scale, place, mag\|null}]`, newest first; `scale` is the P2PQuake code (30 = shindo 3, 45 = 5弱 …) |
+| `holidays` (1 h) | `{upcoming: [{date, name}] (next 5), map: {"YYYY-MM-DD": name}}` |
+| `fx` (30 min) | `{rate, prev, date, at, base, quote}`; `prev` is the last different rate (persisted) |
+| `news` (10 min) | `{items: [{title, at\|null}], at}` |
+| `bluetooth` (2 min) | `{devices: [{name, type, battery: {main?, L?, R?, case?}}], at}` |
+| `onthisday` (10 min) | `{date, events: [{year, text}], observances: [text]}` |
+| `launches` (30 min) | `{items: [{name, net (ISO), status, provider, location}], at}` |
+| `kp` (30 min) | `{rows: [["YYYY-MM-DDTHH:MM:SS", kp]] (last 24), at}` |
+| `recent` (10 s) | `{items: [{title, artist, source, at}]}` |
+| `contrib` (30 min) | `{days: [["YYYY-MM-DD", count]] (last 14 weeks), year, at}` |
+| `github` (5 min) | `{review, review_items: [{title, repo}], mine: [{title, repo, ci}], failing, at}`; `ci` is the GitHub rollup state or `null` |
+| `sessions` (15 s) | `{local: [{cwd (basename), kind}]}` |
+| `rfc` (10 min) | `{pending: [{id, name, user_action}], at}` |
 
 ## Runtime ↔ plugin messages
 

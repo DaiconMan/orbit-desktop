@@ -1,0 +1,24 @@
+id: onthisday
+name: On This Day
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "今日は何の日: today's observances and three historical events spread across the centuries (from the Wikipedia day article via the onthisday provider). Hidden until today's data has arrived."
+needs: [time, onthisday]
+default_size:
+  width: auto
+  height: auto
+settings:
+  max_chars:
+    type: integer
+    default: 46
+    min: 10
+    max: 200
+    description: "Skip events whose text is longer than this (keeps each to two lines)"
+  min_year:
+    type: integer
+    default: 1600
+    min: -5000
+    max: 3000
+    description: "Skip events before this year"

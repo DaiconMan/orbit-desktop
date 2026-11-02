@@ -49,6 +49,7 @@ SDK_JS = os.path.join(RUNTIME_DIR, "sdk", "orbit-sdk.js")
 SDK_CSS = os.path.join(RUNTIME_DIR, "sdk", "orbit-sdk.css")
 ASSET_TYPES = {".json": "application/json", ".txt": "text/plain; charset=utf-8", ".csv": "text/csv; charset=utf-8"}
 MAX_SSE_CLIENTS = 8
+GENERIC_BY_PATH = {v[0]: (n, v[1]) for n, v in oc.GENERIC_SIGNALS.items()}
 
 
 class State:
@@ -66,7 +67,7 @@ class State:
 
     def _stamp(self):
         parts = []
-        for p in [self.config_path] + [os.path.join(r, n, "widget.yaml") for r in (oc.REPO_WIDGETS, oc.USER_WIDGETS)
+        for p in [self.config_path, oc.USER_SETTINGS] + [os.path.join(r, n, "widget.yaml") for r in (oc.REPO_WIDGETS, oc.USER_WIDGETS)
                                        if os.path.isdir(r) for n in sorted(os.listdir(r))]:
             try:
                 st = os.stat(p)
@@ -83,6 +84,11 @@ class State:
             errors, warnings = [], []
             plugins = oc.discover_plugins(errors, warnings, include_user=self.include_user)
             res = oc.load_layout(self.config_path, plugins)
+            # every module of the layout, before settings.json hides some (for the settings window)
+            seen = set()
+            res["modules"] = [{"use": w["use"], "name": w["name"]} for w in res["widgets"]
+                              if not (w["use"] in seen or seen.add(w["use"]))]
+            apply_user_settings(res, warnings)
             res["errors"] = errors + res["errors"]
             res["warnings"] = warnings + res["warnings"]
             self.plugins, self.resolved, self.stamp = plugins, res, stamp
@@ -102,18 +108,69 @@ class State:
     def public_config(self):
         r = self.resolved
         prov = r["providers"]
+        signals = {n: {"path": f"/api/signals/{v[0]}", "interval": v[2]}
+                   for n, v in oc.GENERIC_SIGNALS.items() if v[1] is None or prov[v[1]]["enabled"]}
         return {
             "version": self.version,
             "configPath": self.config_path,
             "theme": r["theme"],
             "background": r["background"],
             "widgets": r["widgets"],
+            "zones": r.get("zones", {}),
+            "modules": r.get("modules", []),
+            "hidden": r.get("hidden", []),
+            "signals": signals,
             "providers": {"weather": prov["weather"]["enabled"], "nowPlaying": prov["now_playing"]["enabled"],
                           "claudeUsage": prov["claude_usage"]["enabled"], "speedtest": prov["speedtest"]["enabled"],
                           "pingTargets": [t["name"] for t in prov["ping"]["targets"]]},
             "errors": r["errors"],
             "warnings": r["warnings"],
         }
+
+
+MOCK = {"path": None, "mtime": None, "data": None}
+MOCK_ALIASES = {"now-playing": "nowPlaying", "claude-usage": "claudeUsage"}
+
+
+def load_mock():
+    """--mock FILE (development only): {"<signal name>": payload, ...} served instead of the real providers."""
+    p = MOCK["path"]
+    if not p:
+        return None
+    try:
+        m = os.stat(p).st_mtime
+        if m != MOCK["mtime"]:
+            with open(p, "r", encoding="utf-8") as f:
+                MOCK["data"], MOCK["mtime"] = json.load(f), m
+    except (OSError, ValueError) as e:
+        print(f"[orbit] mock file: {e}", flush=True)
+    return MOCK["data"]
+
+
+def apply_user_settings(res, warnings):
+    """Overlay ~/.config/orbit-desktop/settings.json (written by the host app's settings window):
+    wallpaper.hidden drops widgets by plugin id, wallpaper.page_seconds sets every rotating zone's interval."""
+    try:
+        with open(oc.USER_SETTINGS, "r", encoding="utf-8") as f:
+            st = json.load(f)
+    except FileNotFoundError:
+        return
+    except (OSError, ValueError) as e:
+        warnings.append(f"settings.json ignored: {e}")
+        return
+    res["hidden"] = []
+    wp = st.get("wallpaper") if isinstance(st, dict) else None
+    if not isinstance(wp, dict):
+        return
+    hidden = {h for h in (wp.get("hidden") or []) if isinstance(h, str)}
+    if hidden:
+        res["hidden"] = sorted(hidden)
+        res["widgets"] = [w for w in res["widgets"] if w["use"] not in hidden]
+    ps = wp.get("page_seconds")
+    if isinstance(ps, (int, float)) and not isinstance(ps, bool) and 5 <= ps <= 3600:
+        for z in res.get("zones", {}).values():
+            if z.get("rotate_seconds"):
+                z["rotate_seconds"] = int(ps)
 
 
 def read_text(path, limit=2_000_000):
@@ -197,6 +254,12 @@ def make_handler(state: State, prov: Providers, port: int):
         # ---------------------------------------------------------- API
         def api(self, path):
             state.reload_if_changed()
+            mock = load_mock()
+            if mock is not None and path.startswith("/api/signals/"):
+                key = path[len("/api/signals/"):]
+                name = GENERIC_BY_PATH.get(key, (MOCK_ALIASES.get(key, key),))[0]
+                if name in mock:
+                    return self.json(mock[name])
             if path == "/api/health":
                 return self.json({"ok": True, "api": 1, "server": "orbit-dev-server", "time": time.time(),
                               "hostApp": prov.host_dir is not None})
@@ -236,6 +299,12 @@ def make_handler(state: State, prov: Providers, port: int):
                 return self.send(body, "application/json")
             if path == "/api/stream/audio":
                 return self.audio_stream()
+            m = re.match(r"^/api/signals/([a-z][a-z0-9-]{1,30})$", path)
+            if m and m.group(1) in GENERIC_BY_PATH:
+                name, prov_key = GENERIC_BY_PATH[m.group(1)]
+                if prov_key and not state.resolved["providers"][prov_key]["enabled"]:
+                    return self.send_error(404, f"{prov_key} provider disabled")
+                return self.json(prov.get(name))
             self.send_error(404)
 
         def audio_stream(self):
@@ -392,10 +461,12 @@ def main(argv=None):
     ap.add_argument("--no-user-plugins", action="store_true", help=f"ignore {oc.USER_WIDGETS}")
     ap.add_argument("--host-dir", default=None, help="read native host-app provider files from DIR")
     ap.add_argument("--parent-pid", type=int, default=None, help="exit when this process is gone")
+    ap.add_argument("--mock", default=None, help="development: JSON file {signal: payload} served instead of providers")
     a = ap.parse_args(argv)
     cfg = a.config or (oc.USER_CONFIG if os.path.isfile(oc.USER_CONFIG) else oc.EXAMPLE_CONFIG)
     cfg = os.path.abspath(os.path.expanduser(cfg))
     state = State(cfg, include_user=not a.no_user_plugins)
+    MOCK["path"] = os.path.abspath(a.mock) if a.mock else None
     host_dir = os.path.abspath(os.path.expanduser(a.host_dir)) if a.host_dir else None
     prov = Providers(state.resolved["providers"], host_dir=host_dir)
     prov.start()

@@ -147,7 +147,7 @@
       ctx.settings = Object.freeze(Object.assign({}, m.settings));
       ctx.theme = m.theme || {}; ctx.viewport = m.viewport || ctx.viewport; ctx.assets = m.assets || {};
       sizing = m.sizing || sizing;
-      if (sizing.width !== 'auto') root.classList.add('fixed-w');
+      if (sizing.width !== 'auto') root.classList.add('fixed-w');   // 'zone' (width of the zone column) or a CSS length
       if (m.maxWidth) document.documentElement.style.setProperty('--max-w', m.maxWidth + 'px');
       applyTheme(); start();
     } else if (m.type === 'signal' && typeof m.name === 'string') {
@@ -161,8 +161,57 @@
     }
   });
 
+  // ---------------------------------------------------------------- module kit (shared look, ported from the prototype)
+  let visible = true;
+  /** Show / hide this widget. A hidden widget in a zone collapses, and the others close up. */
+  ctx.visible = on => { on = !!on; if (on !== visible) { visible = on; post({ type: 'visible', on }); } };
+  const hists = {};
+  const ui = Object.freeze({
+    esc: ctx.esc,
+    agoTxt: t => { const m = Math.round((Date.now() / 1000 - t) / 60); return m < 1 ? 'たった今' : m < 60 ? `${m}分前` : m < 1440 ? `${Math.round(m / 60)}時間前` : `${Math.round(m / 1440)}日前`; },
+    dur: ms => { const m = Math.max(0, Math.round(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
+      return d ? `${d}日 ${h}時間` : h ? `${h}時間 ${m % 60}分` : `${m}分`; },
+    ymd: d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+    day0: () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; },
+    kv: (k, v, cls = '') => `<div class="kv"><span class="k">${k}</span><span class="v ${cls}">${v}</span></div>`,
+    tile: (big, label, cls = '', extra = '') => `<div class="tile ${cls}"><b>${big}</b><span>${label}</span>${extra}</div>`,
+    meter: (pct, color) => `<div class="meter"><i style="width:${Math.max(0, Math.min(100, pct))}%${color ? ';background:' + color : ''}"></i></div>`,
+    fmtB: b => b > 1e6 ? (b / 1e6).toFixed(1) + ' MB/s' : (b / 1e3).toFixed(0) + ' KB/s',
+    SCALE: { 10: '1', 20: '2', 30: '3', 40: '4', 45: '5弱', 50: '5強', 55: '6弱', 60: '6強', 70: '7' },
+    WD: ['日', '月', '火', '水', '木', '金', '土'],
+    WMO: c => c === 0 ? ['☀️', '快晴'] : c <= 2 ? ['🌤️', '晴れ'] : c === 3 ? ['☁️', 'くもり'] : c <= 48 ? ['☁️', '霧']
+      : c <= 57 ? ['🌦️', '霧雨'] : c <= 67 ? ['🌧️', '雨'] : c <= 77 ? ['🌨️', '雪'] : c <= 82 ? ['🌧️', 'にわか雨'] : c <= 86 ? ['🌨️', 'にわか雪'] : ['⛈️', '雷雨'],
+    dayWord: dd => dd === 0 ? '今日' : dd === 1 ? '明日' : dd === 2 ? 'あさって' : `あと${dd}日`,
+    /** sparkline into the canvas with this id (keeps 60 values per id) */
+    spark(id, val, max, color) {
+      const h = hists[id] = (hists[id] || []).concat([val]).slice(-60);
+      const c = document.getElementById(id); if (!c || !c.clientWidth) return;
+      const g = c.getContext('2d'), w = c.width = c.clientWidth * 2, ht = c.height = c.clientHeight * 2;
+      const m = max || Math.max(...h, 1e-9);
+      g.beginPath();
+      h.forEach((v, i) => { const x = i / 59 * w, y = ht - Math.min(1, v / m) * (ht - 2) - 1; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+      g.strokeStyle = color; g.lineWidth = 2; g.shadowColor = color; g.shadowBlur = 6; g.stroke();
+    },
+  });
+
+  /**
+   * Module frame: eyebrow header (title · hairline · meta) + body, in the shared module style.
+   *   const m = Orbit.module(ctx, 'TONIGHT');  m.body.innerHTML = ...;  m.meta.innerHTML = ...;
+   * Returns { el, body, meta }.
+   */
+  function module(c, title, cls = '') {
+    document.body.classList.add('orbit-module');
+    const el = document.createElement('section');
+    el.className = 'mod ' + cls;
+    el.innerHTML = `<header class="mh"><span class="eb"></span><i class="ln"></i><span class="mx"></span></header><div class="mb"></div>`;
+    el.querySelector('.eb').textContent = title;
+    c.root.appendChild(el);
+    return { el, body: el.querySelector('.mb'), meta: el.querySelector('.mx') };
+  }
+
   window.Orbit = Object.freeze({
-    version: '0.1.0',
+    version: '0.2.0',
+    ui, module,
     widget(d) { if (PLUGIN.kind !== 'widget') return reportError('Orbit.widget() used in a background plugin'); def = d || {}; start(); },
     background(d) { if (PLUGIN.kind !== 'background') return reportError('Orbit.background() used in a widget plugin'); def = d || {}; start(); },
     /** draw a sparkline into a <canvas>; returns the updated history */

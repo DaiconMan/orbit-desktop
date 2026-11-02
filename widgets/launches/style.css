@@ -1,0 +1,5 @@
+/* launches: next launch block (mission, details, T− countdown) */
+.lch .nx b { display: block; font: 400 var(--t-l) var(--disp); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lch .nx .sub { font-size: var(--t-xs); opacity: .45; letter-spacing: .08em; margin-top: calc(var(--vh) * .35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lch .nx .tminus { font: 200 var(--t-xl) var(--disp); font-variant-numeric: tabular-nums; margin: calc(var(--vh) * 1) 0 calc(var(--vh) * 1.4); line-height: 1; white-space: nowrap; overflow: hidden; }
+.lch .nx .tminus small { font: 500 var(--t-xs) var(--mono); letter-spacing: .14em; opacity: .5; margin-right: calc(var(--vh) * 1); }

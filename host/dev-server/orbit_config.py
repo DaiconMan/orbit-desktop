@@ -7,6 +7,7 @@ friendly list on the desktop instead of a blank screen.
 from __future__ import annotations
 
 import copy
+import ipaddress
 import os
 import re
 
@@ -17,6 +18,8 @@ REPO_WIDGETS = os.path.join(REPO_ROOT, "widgets")
 USER_DIR = os.path.expanduser("~/.config/orbit-desktop")
 USER_CONFIG = os.path.join(USER_DIR, "layout.yaml")
 USER_WIDGETS = os.path.join(USER_DIR, "widgets")
+# Written by the host app's settings window: {"wallpaper": {"hidden": [use ids], "page_seconds": n}, "eew": {...}}
+USER_SETTINGS = os.path.join(USER_DIR, "settings.json")
 EXAMPLE_CONFIG = os.path.join(REPO_ROOT, "examples", "layout.yaml")
 CACHE_DIR = os.path.expanduser("~/Library/Caches/orbit-desktop")
 
@@ -30,8 +33,48 @@ SIGNALS = {
     "weather": "Open-Meteo forecast for the configured location + place name",
     "location": "Latitude / longitude / place name",
     "claudeUsage": "UNOFFICIAL: Claude Code usage meters from ~/.claude.json (opt-in)",
+    "mac": "Battery, Time Machine, free disk space, active (input) minutes today",
+    "network": "Home/away, Tailscale, NAS mounts, ping targets, line speed",
+    "alerts": "Earthquake Early Warning and tsunami warnings (host app, JP)",
+    "iss": "ISS position (lat/lon/altitude), opt-in network",
+    "quakes": "Recent earthquakes (JMA via P2PQuake, JP), opt-in network",
+    "holidays": "Upcoming public holidays, opt-in network",
+    "fx": "Exchange rate with previous value, opt-in network",
+    "news": "News headlines from an RSS feed, opt-in network",
+    "bluetooth": "Connected Bluetooth devices with battery levels",
+    "onthisday": "On this day: events and observances (Wikipedia), opt-in network",
+    "launches": "Upcoming rocket launches (The Space Devs), opt-in network",
+    "kp": "Planetary Kp index (NOAA SWPC), opt-in network",
+    "recent": "Recently played tracks (local history of nowPlaying)",
+    "contrib": "GitHub contribution calendar (via gh), opt-in",
+    "github": "GitHub review requests and my PRs with CI state (via gh), opt-in",
+    "sessions": "Local Claude Code sessions (cwd basenames), opt-in",
+    "rfc": "Documents awaiting approval in a GitHub repo (via gh), opt-in, personal",
 }
-SENSITIVE_SIGNALS = {"calendar", "location", "nowPlaying", "claudeUsage"}
+SENSITIVE_SIGNALS = {"calendar", "location", "nowPlaying", "claudeUsage", "network", "github", "sessions", "rfc",
+                     "recent", "bluetooth", "contrib"}
+
+# Signals the server serves generically at /api/signals/<path> from Providers.get(<name>).
+# name -> (path, providers.<key> that must be enabled (None: always), runtime poll interval in ms)
+GENERIC_SIGNALS = {
+    "mac": ("mac", "mac", 30000),
+    "network": ("network", "network", 5000),
+    "alerts": ("alerts", None, 1000),
+    "iss": ("iss", "iss", 10000),
+    "quakes": ("quakes", "quakes", 60000),
+    "holidays": ("holidays", "holidays", 3600000),
+    "fx": ("fx", "fx", 1800000),
+    "news": ("news", "news", 600000),
+    "bluetooth": ("bluetooth", "bluetooth", 120000),
+    "onthisday": ("onthisday", "onthisday", 600000),
+    "launches": ("launches", "launches", 1800000),
+    "kp": ("kp", "kp", 1800000),
+    "recent": ("recent", "recent", 10000),
+    "contrib": ("contrib", "contrib", 1800000),
+    "github": ("github", "github", 300000),
+    "sessions": ("sessions", "sessions", 15000),
+    "rfc": ("rfc", "rfc", 600000),
+}
 
 SETTING_TYPES = {"string", "number", "integer", "boolean", "color", "enum", "length", "list"}
 KINDS = {"widget", "background"}
@@ -360,12 +403,13 @@ DEFAULT_THEME = {
     "text_color": "#ffffff",
     "locale": "auto",
     "hour12": False,
+    "night_dim": False,      # 00:00-06:00: widgets settle to ~65 % opacity
 }
 
 DEFAULT_PROVIDERS = {
     "location": {"mode": "fixed", "lat": 51.4779, "lon": -0.0015, "name": "GREENWICH",
                  "corelocation_cli": "/opt/homebrew/bin/CoreLocationCLI"},
-    "weather": {"enabled": True, "refresh_minutes": 15},
+    "weather": {"enabled": True, "refresh_minutes": 15, "air": True, "pressure": True},
     "system": {"interface": "auto"},
     "ping": {"targets": [], "interval_seconds": 10, "external_file": None},
     "speedtest": {"enabled": False, "interval_minutes": 60, "only_on_ac_power": True},
@@ -374,12 +418,37 @@ DEFAULT_PROVIDERS = {
     "calendar": {"file": os.path.join(CACHE_DIR, "calendar.json")},
     "audio": {"file": os.path.join(CACHE_DIR, "audiopulse.json")},
     "claude_usage": {"enabled": False},
+    "mac": {"enabled": True, "active": True},
+    "network": {"enabled": True, "home_subnet": None, "home_ssid": None, "home_interface": "auto", "mounts": [],
+                "interval_seconds": 5},
+    "iss": {"enabled": False},
+    "quakes": {"enabled": False, "min_intensity": "3", "hours": 24},
+    "holidays": {"enabled": False, "country": "JP"},
+    "fx": {"enabled": False, "base": "USD", "quote": "JPY"},
+    "news": {"enabled": False, "url": "https://www.nhk.or.jp/rss/news/cat0.xml", "max_items": 8},
+    "bluetooth": {"enabled": False},
+    "onthisday": {"enabled": False, "lang": "ja"},
+    "launches": {"enabled": False},
+    "kp": {"enabled": False},
+    "recent": {"enabled": True, "max_items": 8},
+    "contrib": {"enabled": False},
+    "github": {"enabled": False, "gh_path": "gh"},
+    "sessions": {"enabled": False},
+    "rfc": {"enabled": False, "repo": None, "dir": "rfc", "file_prefix": "RFC-", "status_label": "Status",
+            "pending_text": "Pending approval", "user_action_text": None},
 }
+
+# JMA seismic intensity labels accepted by providers.quakes.min_intensity (quote them: "5弱").
+QUAKE_SCALES = ("1", "2", "3", "4", "5弱", "5強", "6弱", "6強", "7")
+GITHUB_REPO_RE = re.compile(r"^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$")
+REPO_DIR_RE = re.compile(r"^[A-Za-z0-9_.\-/]{1,200}$")
+CURRENCY_RE = re.compile(r"^[A-Za-z]{3}$")
 
 PROVIDER_SCHEMA = {
     "location": {"mode": ("enum", ["fixed", "corelocation", "ip"]), "lat": ("number", (-90, 90)),
                  "lon": ("number", (-180, 180)), "name": ("string", None), "corelocation_cli": ("string", None)},
-    "weather": {"enabled": ("boolean", None), "refresh_minutes": ("integer", (5, 1440))},
+    "weather": {"enabled": ("boolean", None), "refresh_minutes": ("integer", (5, 1440)), "air": ("boolean", None),
+                "pressure": ("boolean", None)},
     "system": {"interface": ("string", None)},
     "ping": {"targets": ("list", None), "interval_seconds": ("integer", (2, 3600)), "external_file": ("string?", None)},
     "speedtest": {"enabled": ("boolean", None), "interval_minutes": ("integer", (15, 1440)), "only_on_ac_power": ("boolean", None)},
@@ -388,9 +457,23 @@ PROVIDER_SCHEMA = {
     "calendar": {"file": ("string", None)},
     "audio": {"file": ("string", None)},
     "claude_usage": {"enabled": ("boolean", None)},
+    "mac": {"enabled": ("boolean", None), "active": ("boolean", None)},
+    "network": {"enabled": ("boolean", None), "home_subnet": ("string?", None), "home_ssid": ("string?", None),
+                "home_interface": ("string", None), "mounts": ("list", None), "interval_seconds": ("integer", (2, 600))},
+    "quakes": {"enabled": ("boolean", None), "min_intensity": ("enum", list(QUAKE_SCALES) + [1, 2, 3, 4, 7]), "hours": ("integer", (1, 168))},
+    "holidays": {"enabled": ("boolean", None), "country": ("enum", ["JP"])},
+    "fx": {"enabled": ("boolean", None), "base": ("string", None), "quote": ("string", None)},
+    "news": {"enabled": ("boolean", None), "url": ("string", None), "max_items": ("integer", (1, 30))},
+    "onthisday": {"enabled": ("boolean", None), "lang": ("string", None)},
+    "recent": {"enabled": ("boolean", None), "max_items": ("integer", (1, 50))},
+    "github": {"enabled": ("boolean", None), "gh_path": ("string", None)},
+    "rfc": {"enabled": ("boolean", None), "repo": ("string?", None), "dir": ("string", None), "file_prefix": ("string", None),
+            "status_label": ("string", None), "pending_text": ("string", None), "user_action_text": ("string?", None)},
+    **{k: {"enabled": ("boolean", None)} for k in ("iss", "bluetooth", "launches", "kp", "contrib", "sessions")},
 }
 
-SIGNAL_PROVIDER = {"weather": "weather", "nowPlaying": "now_playing", "claudeUsage": "claude_usage"}
+SIGNAL_PROVIDER = {"weather": "weather", "nowPlaying": "now_playing", "claudeUsage": "claude_usage",
+                   **{n: v[1] for n, v in GENERIC_SIGNALS.items() if v[1]}}
 
 
 def _validate_providers(given, errors: list, warnings: list) -> dict:
@@ -452,7 +535,60 @@ def _validate_providers(given, errors: list, warnings: list) -> dict:
         warnings.append("providers.location.mode is 'ip': your public IP is sent to ipinfo.io every 30 minutes")
     if out["claude_usage"]["enabled"]:
         warnings.append("providers.claude_usage is enabled: reads an UNDOCUMENTED field of ~/.claude.json; may break at any time")
+    _validate_extra_providers(out, errors, warnings)
     return out
+
+
+def _validate_extra_providers(out: dict, errors: list, warnings: list):
+    """Cross-field checks for the panel providers (mac, network, quakes, fx, news, rfc, ...)."""
+    if isinstance(out["quakes"]["min_intensity"], int):  # YAML 3 instead of "3"
+        out["quakes"]["min_intensity"] = str(out["quakes"]["min_intensity"])
+    net = out["network"]
+    if net["home_subnet"] is not None:
+        try:
+            ipaddress.ip_network(net["home_subnet"], strict=False)
+        except ValueError:
+            errors.append(f"providers.network.home_subnet: not a subnet like \"192.168.1.0/24\": {net['home_subnet']!r}")
+            net["home_subnet"] = None
+    mounts = []
+    for i, m in enumerate(net["mounts"] or []):
+        if isinstance(m, str) and 0 < len(m) <= 80 and "/" not in m:
+            mounts.append(m)
+        else:
+            errors.append(f"providers.network.mounts[{i}]: expected a share name (no slashes), got {m!r}")
+    net["mounts"] = mounts
+    if not re.match(r"^(auto|[a-z0-9]{1,15})$", net["home_interface"]):
+        errors.append("providers.network.home_interface: expected auto or an interface name like en0")
+        net["home_interface"] = "auto"
+    for k in ("base", "quote"):
+        if not CURRENCY_RE.match(out["fx"][k]):
+            errors.append(f"providers.fx.{k}: expected a 3-letter currency code like USD")
+            out["fx"]["enabled"] = False
+    if not out["news"]["url"].startswith("https://"):
+        errors.append("providers.news.url: must be an https:// URL")
+        out["news"]["enabled"] = False
+    if not re.match(r"^[a-z]{2,3}(-[a-z]{2,4})?$", out["onthisday"]["lang"]):
+        errors.append("providers.onthisday.lang: expected a Wikipedia language code like ja or en")
+        out["onthisday"]["lang"] = "ja"
+    rfc = out["rfc"]
+    if rfc["enabled"]:
+        if not (isinstance(rfc["repo"], str) and GITHUB_REPO_RE.match(rfc["repo"])):
+            errors.append("providers.rfc.repo: required when enabled, as owner/name")
+            rfc["enabled"] = False
+        if not REPO_DIR_RE.match(rfc["dir"]) or ".." in rfc["dir"]:
+            errors.append("providers.rfc.dir: expected a folder path inside the repo")
+            rfc["enabled"] = False
+        if not rfc["status_label"] or not rfc["pending_text"]:
+            errors.append("providers.rfc: status_label and pending_text must not be empty")
+            rfc["enabled"] = False
+    if out["github"]["gh_path"].startswith("-") or not out["github"]["gh_path"].strip():
+        errors.append("providers.github.gh_path: expected gh or a path to the gh binary")
+        out["github"]["gh_path"] = "gh"
+    gh = [k for k in ("github", "contrib", "rfc") if out[k]["enabled"]]
+    if gh:
+        warnings.append(f"providers {', '.join(gh)}: use your gh login and show GitHub data on the desktop")
+    if out["sessions"]["enabled"]:
+        warnings.append("providers.sessions is enabled: shows the folder names of running Claude Code sessions")
 
 
 def _validate_theme(given, errors: list) -> dict:
@@ -484,7 +620,7 @@ def _validate_theme(given, errors: list) -> dict:
                 errors.append(f"{w}: must be 'auto' or a BCP-47 tag like ja-JP / en-US")
             else:
                 out[k] = v
-        elif k == "hour12":
+        elif k in ("hour12", "night_dim"):
             if _check_value({"type": "boolean"}, v, w, errors):
                 out[k] = v
     return out
@@ -522,20 +658,74 @@ def _validate_position(pos, defaults: dict, where: str, errors: list) -> dict:
     return out
 
 
+ZONE_KEYS = {"anchor": ("enum", sorted(ANCHORS)), "x": "length", "y": "length", "width": "length", "height": "length",
+             "gap": "length", "columns": ("integer", (1, 4)), "column_gap": "length", "rotate_seconds": ("integer", (5, 3600))}
+
+
+def _validate_zones(given, errors: list) -> dict:
+    """zones: named areas whose widgets flow vertically (no overlaps). A zone with `rotate_seconds` holds
+    pages of `columns` columns that crossfade (widgets pick `page` and `column`)."""
+    out = {}
+    if given is None:
+        return out
+    if not isinstance(given, dict):
+        errors.append("zones: must be a mapping of zone name -> settings")
+        return out
+    for name, z in given.items():
+        w = f"zones.{name}"
+        if not isinstance(name, str) or not re.match(r"^[a-z][a-z0-9-]{0,30}$", name):
+            errors.append(f"{w}: zone names must be lowercase ids")
+            continue
+        if not isinstance(z, dict):
+            errors.append(f"{w}: must be a mapping")
+            continue
+        r = {"anchor": "top-left", "x": 0, "y": 0, "width": "20vw", "height": "auto", "gap": "3.4vh",
+             "columns": 1, "column_gap": "3vw", "rotate_seconds": None}
+        ok = True
+        for k, v in z.items():
+            if k not in ZONE_KEYS:
+                errors.append(f"{w}.{k}: unknown key (known: {', '.join(ZONE_KEYS)})")
+                ok = False
+                continue
+            t = ZONE_KEYS[k]
+            if t == "length":
+                if k == "height" and v == "auto":
+                    r[k] = v
+                elif isinstance(v, bool) or not (isinstance(v, (int, float)) or (isinstance(v, str) and LENGTH_RE.match(v))):
+                    errors.append(f"{w}.{k}: must be a CSS length like \"6vw\"")
+                    ok = False
+                else:
+                    r[k] = v
+            elif t[0] == "enum":
+                if v not in t[1]:
+                    errors.append(f"{w}.{k}: must be one of {', '.join(t[1])}")
+                    ok = False
+                else:
+                    r[k] = v
+            elif _check_value({"type": "integer", "min": t[1][0], "max": t[1][1]}, v, f"{w}.{k}", errors):
+                r[k] = v
+            else:
+                ok = False
+        if ok:
+            out[name] = r
+    return out
+
+
 def validate_layout(cfg, plugins: dict) -> dict:
     """Validate a parsed layout.yaml. Returns the resolved config incl. errors/warnings."""
     errors, warnings = [], []
     if cfg is None:
         cfg = {}
     if not isinstance(cfg, dict):
-        return {"errors": ["layout.yaml: top level must be a mapping"], "warnings": [], "widgets": [],
+        return {"errors": ["layout.yaml: top level must be a mapping"], "warnings": [], "widgets": [], "zones": {},
                 "theme": dict(DEFAULT_THEME), "background": None, "providers": copy.deepcopy(DEFAULT_PROVIDERS)}
-    for k in sorted(set(cfg) - {"version", "theme", "background", "widgets", "providers"}):
-        errors.append(f"{k}: unknown top-level key (version, theme, background, widgets, providers)")
+    for k in sorted(set(cfg) - {"version", "theme", "background", "widgets", "providers", "zones"}):
+        errors.append(f"{k}: unknown top-level key (version, theme, background, widgets, providers, zones)")
     if cfg.get("version", 1) != 1:
         errors.append("version: only version 1 is supported")
     theme = _validate_theme(cfg.get("theme"), errors)
     providers = _validate_providers(cfg.get("providers"), errors, warnings)
+    zones = _validate_zones(cfg.get("zones"), errors)
 
     # background
     bg_in = cfg.get("background")
@@ -593,8 +783,8 @@ def validate_layout(cfg, plugins: dict) -> dict:
         if not isinstance(w, dict):
             errors.append(f"{where}: must be a mapping with 'use'")
             continue
-        for k in sorted(set(w) - {"use", "position", "settings", "id"}):
-            errors.append(f"{where}.{k}: unknown key (use, position, settings, id)")
+        for k in sorted(set(w) - {"use", "position", "settings", "id", "zone", "page", "column", "dim"}):
+            errors.append(f"{where}.{k}: unknown key (use, position, settings, id, zone, page, column, dim)")
         use = w.get("use")
         m = plugins.get(use)
         if not m:
@@ -606,6 +796,14 @@ def validate_layout(cfg, plugins: dict) -> dict:
         n0 = len(errors)
         settings = apply_settings(m.get("settings"), w.get("settings"), f"{where}.settings ({use})", errors, warnings)
         position = _validate_position(w.get("position"), m.get("default_size") or {}, f"{where}.position", errors)
+        zone, page, column = w.get("zone"), w.get("page", 0), w.get("column", 0)
+        if zone is not None:
+            if zone not in zones:
+                errors.append(f"{where}.zone: unknown zone {zone!r} (defined: {', '.join(zones) or 'none'})")
+            else:
+                _check_value({"type": "integer", "min": 0, "max": 40}, page, f"{where}.page", errors)
+                _check_value({"type": "integer", "min": 0, "max": zones[zone]["columns"] - 1}, column, f"{where}.column", errors)
+        _check_value({"type": "boolean"}, w.get("dim", True), f"{where}.dim", errors)
         if len(errors) > n0:
             continue  # skip only the broken widget; the rest of the desktop still renders
         for s in m["needs"]:
@@ -615,14 +813,16 @@ def validate_layout(cfg, plugins: dict) -> dict:
         if m.get("unofficial"):
             warnings.append(f"{where} ({use}) is an UNOFFICIAL plugin (relies on undocumented data)")
         widgets.append({"instance": f"w{i}", "use": use, "name": m.get("name"), "needs": list(m["needs"]),
-                        "settings": settings, "position": position, "assets": list(m.get("assets") or [])})
+                        "settings": settings, "position": position, "assets": list(m.get("assets") or []),
+                        "zone": zone if zone in zones else None, "page": page if zone else 0,
+                        "column": column if zone else 0, "dim": w.get("dim", True) is not False})
     if background:
         for s in background["needs"]:
             prov = SIGNAL_PROVIDER.get(s)
             if prov and not providers[prov]["enabled"]:
                 warnings.append(f"background ({background['use']}) needs '{s}' but providers.{prov}.enabled is false")
     return {"theme": theme, "background": background, "widgets": widgets, "providers": providers,
-            "errors": errors, "warnings": warnings}
+            "zones": zones, "errors": errors, "warnings": warnings}
 
 
 def load_layout(path: str, plugins: dict) -> dict:

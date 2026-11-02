@@ -37,15 +37,15 @@ widgets:
     position: { anchor: top-right, x: 3.5vw, y: 6vh, width: 25vw }
 
   - use: now-playing
-    position: { anchor: bottom-left, x: 6vw, y: 33vh }
+    position: { anchor: bottom-left, x: 6vw, y: 29vh }
 
   - use: clock
-    position: { anchor: bottom-left, x: 6vw, y: 11vh }
+    position: { anchor: bottom-left, x: 6vw, y: 7.8vh }
     settings:
       show_date: true
 
   - use: schedule
-    position: { anchor: bottom-right, x: 3.5vw, y: 9.4vh, width: 40vw }
+    position: { anchor: bottom-right, x: 6vw, y: 4vh, width: 54vw }
     settings:
       hours_before: 2
       hours_after: 10
@@ -63,6 +63,8 @@ providers:
   weather:
     enabled: true         # Open-Meteo, no API key; requests carry only the rounded coordinates
     refresh_minutes: 15
+    air: true             # air quality (PM2.5 / US AQI), same provider
+    pressure: true        # surface pressure, past 12 h + next 24 h
   system:
     interface: auto       # or en0 / en1 ...
   ping:
@@ -83,3 +85,52 @@ providers:
     file: "~/Library/Caches/orbit-desktop/audiopulse.json"   # written by host/helpers/audiopulse
   claude_usage:
     enabled: false        # UNOFFICIAL, opt-in
+  # ---- panels. Local, on by default:
+  mac:
+    enabled: true         # battery, Time Machine, free disk space
+    active: true          # minutes with keyboard/mouse input today
+  network:
+    enabled: true         # local commands only (ifconfig / mount); ping + speed come from ping / speedtest
+    home_subnet: null     # e.g. "192.168.1.0/24" -> HOME / AWAY
+    home_ssid: null       # or your Wi-Fi name
+    mounts: []            # SMB share names to watch, e.g. [Share, Media]
+  recent:
+    enabled: true         # recently played tracks, kept locally
+  # ---- opt-in (network or personal data):
+  iss:
+    enabled: false        # api.wheretheiss.at every 10 s
+  quakes:
+    enabled: false        # P2PQuake (JMA, Japan)
+    min_intensity: "3"
+  holidays:
+    enabled: false        # holidays-jp
+    country: JP
+  fx:
+    enabled: false        # Frankfurter (ECB rates)
+    base: USD
+    quote: JPY
+  news:
+    enabled: false
+    url: "https://www.nhk.or.jp/rss/news/cat0.xml"
+  bluetooth:
+    enabled: false        # system_profiler every 5 min
+  onthisday:
+    enabled: false        # Wikipedia
+    lang: ja
+  launches:
+    enabled: false        # The Space Devs
+  kp:
+    enabled: false        # NOAA SWPC
+  github:
+    enabled: false        # review requests + your PRs, via gh (also used by contrib / rfc)
+    gh_path: gh
+  contrib:
+    enabled: false
+  sessions:
+    enabled: false        # running Claude Code sessions (folder names)
+  rfc:
+    enabled: false        # documents awaiting approval in a repo of yours
+    repo: null            # owner/name
+    dir: rfc
+    status_label: Status
+    pending_text: "Pending approval"

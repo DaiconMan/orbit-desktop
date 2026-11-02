@@ -1,11 +1,11 @@
 id: clock
 name: Clock
-version: "1.0.0"
+version: "1.1.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Large thin clock with the date underneath."
-needs: [time]
+description: "Large thin clock with the date underneath, and a meeting countdown below the date."
+needs: [time, calendar]
 default_size:
   width: auto
   height: auto
@@ -22,3 +22,13 @@ settings:
     min: 2
     max: 40
     description: "Clock font size in host vh"
+  meeting:
+    type: boolean
+    default: true
+    description: "Meeting countdown under the date (reserves a 3.2vh row below the date)"
+  meeting_lead:
+    type: integer
+    default: 15
+    min: 1
+    max: 120
+    description: "Show the next event this many minutes before it starts"

@@ -37,15 +37,28 @@ final class SettingsModel: ObservableObject {
         rebuildModules()
     }
 
-    /// Widget instances of the active layout (`use` + `name`, unique by `use`).
+    /// Japanese labels for the bundled modules (as in the prototype's settings window); others use the manifest name.
+    static let labels: [String: String] = [
+        "weather": "天気", "load": "負荷", "homenet": "自宅ネットワーク", "tonight": "今夜の空", "sky": "星図",
+        "life": "暮らし（祝日・為替・地震）", "ops": "開発・運用", "mac": "Mac", "countdown": "カウントダウン",
+        "world": "世界時計", "progress": "進み具合", "contrib": "GitHub ヒートマップ", "month": "月カレンダー",
+        "week": "今週の予定", "recent": "最近の曲", "news": "ニュース", "rain": "雨（2時間）", "pressure": "気圧",
+        "bluetooth": "Bluetooth 機器", "onthisday": "今日は何の日", "launches": "ロケット打ち上げ", "kp": "宇宙天気（Kp）",
+        "now-playing": "再生中の曲", "clock": "時計", "schedule": "予定", "alerts": "緊急地震速報・津波の表示",
+        "system-stats": "システム情報",
+    ]
+
+    /// Every module of the active layout, including hidden ones (`modules` from /api/config; unique by `use`).
     func fetchModules() {
         OrbitAPI.get("/api/config") { [weak self] obj in
             guard let self else { return }
+            let cfg = obj as? [String: Any]
             var seen = Set<String>()
             var list: [(id: String, name: String)] = []
-            for w in ((obj as? [String: Any])?["widgets"] as? [[String: Any]]) ?? [] {
+            for w in (cfg?["modules"] as? [[String: Any]]) ?? (cfg?["widgets"] as? [[String: Any]]) ?? [] {
                 guard let use = w["use"] as? String, seen.insert(use).inserted else { continue }
-                list.append((use, (w["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? use))
+                let name = Self.labels[use] ?? (w["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? use
+                list.append((use, name))
             }
             self.layoutModules = list
             self.rebuildModules()

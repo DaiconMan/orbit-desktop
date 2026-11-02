@@ -1,8 +1,11 @@
 /* Starfield background - the real sky over your location.
  * Stars (mag <= 6, d3-celestial / Yale BSC, BSD) placed by alt/az for the current place & time,
  * zenith-centred azimuthal projection (north up, east left - as when looking up), plus the Milky Way,
- * planets & Moon (Schlyter's simplified orbital elements, ~1 deg), Sgr A*, meteors, network
- * streamlines and an occasional UFO.
+ * planets & Moon (Schlyter's simplified orbital elements, ~1 deg), Sgr A*, the ISS, meteors (plus the
+ * radiant of an annual meteor shower around its peak night), network streamlines and an occasional UFO.
+ * Page-level layers: blurred artwork backdrop (optional), vignette, scan lines, load heat glow + hot edge pulse.
+ * Perf budget (fanless MacBook Air): 1x DPR, prerendered sprites, at most `fps` (20) while something moves,
+ * half that for a quiet sky (the prototype's frameMs logic).
  *
  * Reaction hooks (all 0..1, mapped from signals by `react:` in layout.yaml):
  *   twinkle     - star twinkle strength & speed          (default: cpu)
@@ -14,10 +17,10 @@
 (() => {
   'use strict';
   const rad = Math.PI / 180, D2R = rad, R2D = 180 / Math.PI, n360 = x => ((x % 360) + 360) % 360;
-  let S, W, H, DPR = 1, cx;
+  let S, W, H, DPR = 1, cx, minDt = .05;
   let loc = null, SKY = null, VIS = [], skyLayer = null, mwLayer = null, mwGlow = 1, skyAt = 0, skyL = 0, rotSign = 1;
   let SOLAR = null, UFO = null, nextUfo = Date.now() + 60000 + Math.random() * 180000;
-  let T0 = Date.now(), overlays = {}, lastOverlay = 0;
+  let T0 = Date.now(), overlays = {}, lastOverlay = 0, ISS = null, artKey = null, acc = 0;
   const skyNow = () => new Date(T0 + (Date.now() - T0) * (S.time_scale || 1));
 
   function bvRGB(bv) {          // B-V colour index -> approximate star colour
@@ -108,6 +111,70 @@
   const GLOWS = {};
   const glow = (rgb, size = 64) => GLOWS[rgb + size] || (GLOWS[rgb + size] = makeGlow(rgb, size));
   const MW_SPRITE = makeGlow('190,200,255', 64);
+  // per-frame gradients are expensive on a fanless machine: everything below is drawn once and stamped
+  const BH_GLOW = (() => {                       // black-hole accretion glow: transparent core, orange falloff
+    const Sz = 128, c = document.createElement('canvas'); c.width = c.height = Sz; const g = c.getContext('2d');
+    const gr = g.createRadialGradient(Sz / 2, Sz / 2, Sz / 12, Sz / 2, Sz / 2, Sz / 2);
+    gr.addColorStop(0, 'rgba(255,170,90,.25)'); gr.addColorStop(1, 'rgba(255,170,90,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, Sz, Sz); return c;
+  })();
+  const SPIKES = {};                             // diffraction cross per planet colour
+  function spikeSprite(rgb) {
+    if (SPIKES[rgb]) return SPIKES[rgb];
+    const Sz = 96, c = document.createElement('canvas'); c.width = c.height = Sz; const g = c.getContext('2d');
+    for (const [x0, y0, x1, y1] of [[0, Sz / 2, Sz, Sz / 2], [Sz / 2, 0, Sz / 2, Sz]]) {
+      const gr = g.createLinearGradient(x0, y0, x1, y1);
+      gr.addColorStop(0, `rgba(${rgb},0)`); gr.addColorStop(.5, `rgba(${rgb},.45)`); gr.addColorStop(1, `rgba(${rgb},0)`);
+      g.strokeStyle = gr; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    }
+    return SPIKES[rgb] = c;
+  }
+  const METEOR = (() => {                        // horizontal streak: transparent tail -> white head
+    const c = document.createElement('canvas'); c.width = 256; c.height = 4; const g = c.getContext('2d');
+    const gr = g.createLinearGradient(0, 0, 256, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,.85)');
+    g.fillStyle = gr; g.fillRect(0, 1, 256, 2); return c;
+  })();
+  const BEAM = (() => {                          // UFO tractor beam (80x140 trapezoid, fades downward)
+    const c = document.createElement('canvas'); c.width = 80; c.height = 140; const g = c.getContext('2d');
+    const gr = g.createLinearGradient(0, 0, 0, 140); gr.addColorStop(0, 'rgba(140,255,200,.25)'); gr.addColorStop(1, 'rgba(140,255,200,0)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(32, 0); g.lineTo(48, 0); g.lineTo(80, 140); g.lineTo(0, 140); g.fill(); return c;
+  })();
+
+  /* ---------- annual meteor showers (IMO calendar; peak = month/day, active window, radiant J2000) ---------- */
+  const SHOWERS = [
+    { name: 'しぶんぎ座流星群', peak: [1, 4], from: [12, 28], to: [1, 12], zhr: 110, ra: 230, dec: 49 },
+    { name: 'こと座流星群', peak: [4, 22], from: [4, 14], to: [4, 30], zhr: 18, ra: 271, dec: 34 },
+    { name: 'みずがめ座η流星群', peak: [5, 6], from: [4, 19], to: [5, 28], zhr: 50, ra: 338, dec: -1 },
+    { name: 'ペルセウス座流星群', peak: [8, 13], from: [7, 17], to: [8, 24], zhr: 100, ra: 48, dec: 58 },
+    { name: 'オリオン座流星群', peak: [10, 21], from: [10, 2], to: [11, 7], zhr: 20, ra: 95, dec: 16 },
+    { name: 'しし座流星群', peak: [11, 17], from: [11, 6], to: [11, 30], zhr: 15, ra: 152, dec: 22 },
+    { name: 'ふたご座流星群', peak: [12, 14], from: [12, 4], to: [12, 17], zhr: 150, ra: 112, dec: 33 },
+    { name: 'こぐま座流星群', peak: [12, 22], from: [12, 17], to: [12, 26], zhr: 10, ra: 217, dec: 76 },
+  ];
+  // nearest shower within +-3 days of its peak; night = peak night 20:00-05:00
+  function showerNow(now = new Date()) {
+    const d0 = new Date(now); d0.setHours(0, 0, 0, 0);
+    for (const sh of SHOWERS) for (const y of [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1]) {
+      const pk = new Date(y, sh.peak[0] - 1, sh.peak[1]), days = Math.round((pk - d0) / 864e5);
+      if (Math.abs(days) > 3) continue;
+      const h = now.getHours(), night = (days === 0 && (h >= 20 || h < 5)) || (days === -1 && h < 5);
+      return Object.assign({}, sh, { pk, days, night });
+    }
+    return null;
+  }
+  let SHOWER = showerNow(), showerAt = Date.now();
+
+  /* ---------- ISS: topocentric alt/az from the observer (spherical Earth) ---------- */
+  function issAltAz(i) {
+    const R = 6371, la = loc.lat * D2R, lo = loc.lon * D2R, sl = i.lat * D2R, so = i.lon * D2R, rr = R + (+i.alt || 420);
+    const o = [R * Math.cos(la) * Math.cos(lo), R * Math.cos(la) * Math.sin(lo), R * Math.sin(la)];
+    const q = [rr * Math.cos(sl) * Math.cos(so), rr * Math.cos(sl) * Math.sin(so), rr * Math.sin(sl)];
+    const dx = q[0] - o[0], dy = q[1] - o[1], dz = q[2] - o[2];
+    const e = -Math.sin(lo) * dx + Math.cos(lo) * dy;
+    const n = -Math.sin(la) * Math.cos(lo) * dx - Math.sin(la) * Math.sin(lo) * dy + Math.cos(la) * dz;
+    const u = Math.cos(la) * Math.cos(lo) * dx + Math.cos(la) * Math.sin(lo) * dy + Math.sin(la) * dz;
+    return { alt: Math.atan2(u, Math.hypot(e, n)), az: Math.atan2(e, n), dist: Math.hypot(dx, dy, dz) };
+  }
   const MOON_TEX = (() => {   // grey disc, limb darkening, maria roughly where they are on the near side, craters
     const Sz = 256, c = document.createElement('canvas'); c.width = c.height = Sz;
     const g = c.getContext('2d'), R = Sz / 2;
@@ -183,17 +250,19 @@
   }
 
   function setupOverlays(root) {
-    for (const k of ['vignette', 'heat', 'pulse', 'scan']) {
+    for (const k of ['art', 'vignette', 'heat', 'pulse', 'scan']) {
       const d = document.createElement('div'); d.className = 'sf-' + k; root.appendChild(d); overlays[k] = d;
     }
+    overlays.art.hidden = !S.art_backdrop;
     overlays.vignette.hidden = !S.vignette; overlays.scan.hidden = !S.scanlines;
     overlays.heat.hidden = overlays.pulse.hidden = !S.heat_glow;
   }
 
   Orbit.background({
-    fps: 30,
+    fps: 20,
     setup(ctx) {
       S = ctx.settings; cx = ctx.g; W = ctx.W; H = ctx.H; DPR = ctx.DPR;
+      minDt = 1 / Math.max(1, Math.min(60, +S.fps || 20));
       SKY = ctx.assets['data/stars.6.json'] || null;
       for (let i = 0; i < S.streamline_count; i++) LINES.push(newLine({}, true));
       if (!S.ufo) nextUfo = Infinity;
@@ -201,13 +270,27 @@
     },
     resize(ctx) { W = ctx.W; H = ctx.H; buildSky(); },
     on: {
+      iss(i) { ISS = i && typeof i.lat === 'number' && typeof i.lon === 'number' ? i : null; },
+      nowPlaying(np) {   // blurred artwork backdrop: 4 s fade in while a track is loaded, slow 40 s fade out
+        if (!S.art_backdrop) return;
+        const on = !!np && (np.state === 'playing' || np.state === 'paused');
+        const art = on && typeof np.artwork === 'string' && np.artwork.startsWith('data:image/') ? np.artwork : null;
+        if (art && art !== artKey) { artKey = art; overlays.art.style.backgroundImage = `url("${art}")`; }
+        overlays.art.classList.toggle('on', on && !!artKey);
+      },
       location(l) {
         if (!l || typeof l.lat !== 'number') return;
         if (!loc || Math.abs(l.lat - loc.lat) > .05 || Math.abs(l.lon - loc.lon) > .05) { loc = { lat: l.lat, lon: l.lon }; buildSky(); }
       },
     },
     frame(ctx, f) {
-      const { t, dt, react } = f;
+      const { t, react } = f;
+      // settings.fps (20) while music plays or something moves (load, traffic, meteors, UFO); half that for a quiet sky
+      const np = ctx.signals.nowPlaying, playing = !!(np && np.state === 'playing');
+      const busy = playing || react.twinkle > .2 || react.streamlines > .2 || shooters.length || UFO;
+      acc += f.dt;
+      if (!busy && acc < 2 * minDt - .001) return;
+      const dt = Math.min(.1, acc); acc = 0;
       const palette = [ctx.rgb('a'), ctx.rgb('b'), ctx.rgb('c')];
       const load = react.twinkle, net = react.streamlines, beat = react.glow ** 2;
 
@@ -248,11 +331,7 @@
           cx.fillStyle = `rgb(${c})`; cx.beginPath(); cx.arc(q[0], q[1], core, 0, 6.283); cx.fill();
           if (mag < -1.5) {                                   // faint diffraction spikes on very bright planets
             const L2 = core * (mag < -3 ? 10 : 7);
-            for (const [dx, dy] of [[1, 0], [0, 1]]) {
-              const sg = cx.createLinearGradient(q[0] - dx * L2, q[1] - dy * L2, q[0] + dx * L2, q[1] + dy * L2);
-              sg.addColorStop(0, `rgba(${c},0)`); sg.addColorStop(.5, `rgba(${c},.45)`); sg.addColorStop(1, `rgba(${c},0)`);
-              cx.strokeStyle = sg; cx.lineWidth = .7 * DPR; cx.beginPath(); cx.moveTo(q[0] - dx * L2, q[1] - dy * L2); cx.lineTo(q[0] + dx * L2, q[1] + dy * L2); cx.stroke();
-            }
+            cx.drawImage(spikeSprite(c), q[0] - L2, q[1] - L2, L2 * 2, L2 * 2);
           }
           if (S.labels) {
             cx.font = `${9 * DPR}px ${ctx.theme.font || 'sans-serif'}`; cx.fillStyle = 'rgba(255,255,255,.22)';
@@ -270,9 +349,7 @@
         const bq = S.black_hole && project(SGRA.ra, SGRA.dec, Lnow);
         if (bq) {   // black hole: dark core, photon ring, tilted accretion disc, faint glow
           const R = 9 * DPR, spin = t * .6;
-          const gl = cx.createRadialGradient(bq[0], bq[1], R, bq[0], bq[1], R * 6);
-          gl.addColorStop(0, 'rgba(255,170,90,.25)'); gl.addColorStop(1, 'rgba(255,170,90,0)');
-          cx.fillStyle = gl; cx.beginPath(); cx.arc(bq[0], bq[1], R * 6, 0, 6.283); cx.fill();
+          cx.drawImage(BH_GLOW, bq[0] - R * 6, bq[1] - R * 6, R * 12, R * 12);
           cx.save(); cx.translate(bq[0], bq[1]); cx.rotate(spin * .1);
           cx.strokeStyle = 'rgba(255,190,120,.55)'; cx.lineWidth = 2 * DPR;
           cx.beginPath(); cx.ellipse(0, 0, R * 2.6, R * .7, 0, 0, 6.283); cx.stroke();
@@ -281,6 +358,18 @@
           cx.beginPath(); cx.arc(bq[0], bq[1], R * 1.15, 0, 6.283); cx.stroke();
           cx.fillStyle = '#000'; cx.beginPath(); cx.arc(bq[0], bq[1], R, 0, 6.283); cx.fill();
           if (S.labels) { cx.font = `${9 * DPR}px ${ctx.theme.mono_font || 'monospace'}`; cx.fillStyle = 'rgba(255,200,150,.3)'; cx.fillText('Sgr A*', bq[0] + R * 3, bq[1] - R * 1.5); }
+        }
+      }
+
+      // ---- ISS (live position, drawn when above the horizon) ----
+      if (ISS && S.iss) {
+        const a = issAltAz(ISS);
+        if (a.alt > 0) {
+          const r = (Math.PI / 2 - a.alt) / (Math.PI / 2) * Math.max(W, H) * .62, x = W / 2 - r * Math.sin(a.az), y = H * .55 - r * Math.cos(a.az);
+          const lit = ISS.vis === 'daylight', bl = .6 + .4 * Math.sin(t * 3);
+          cx.fillStyle = `rgba(255,255,255,${lit ? .95 : .35})`; cx.beginPath(); cx.arc(x, y, (lit ? 2.2 : 1.4) * DPR, 0, 6.283); cx.fill();
+          cx.fillStyle = `rgba(160,255,200,${.5 * bl})`; cx.beginPath(); cx.arc(x + 4 * DPR, y, .9 * DPR, 0, 6.283); cx.fill();
+          if (S.labels) { cx.font = `${10 * DPR}px ${ctx.theme.mono_font || 'monospace'}`; cx.fillStyle = 'rgba(200,255,220,.45)'; cx.fillText('ISS', x + 8 * DPR, y - 6 * DPR); }
         }
       }
 
@@ -293,9 +382,7 @@
         UFO.x += UFO.vx * dt; UFO.ph += dt;
         const x = UFO.x, y = UFO.y + Math.sin(UFO.ph * 1.7) * 12 * DPR, s = DPR * 1.2;
         if (Math.sin(UFO.ph * .9) > .55) {   // tractor beam now and then
-          const bm = cx.createLinearGradient(x, y, x, y + 140 * s);
-          bm.addColorStop(0, 'rgba(140,255,200,.25)'); bm.addColorStop(1, 'rgba(140,255,200,0)');
-          cx.fillStyle = bm; cx.beginPath(); cx.moveTo(x - 8 * s, y + 4 * s); cx.lineTo(x + 8 * s, y + 4 * s); cx.lineTo(x + 40 * s, y + 140 * s); cx.lineTo(x - 40 * s, y + 140 * s); cx.fill();
+          cx.drawImage(BEAM, x - 40 * s, y + 4 * s, 80 * s, 140 * s);
         }
         cx.fillStyle = 'rgba(170,230,255,.55)'; cx.beginPath(); cx.ellipse(x, y - 5 * s, 9 * s, 7 * s, 0, Math.PI, 0); cx.fill();
         cx.fillStyle = 'rgba(200,210,225,.9)'; cx.beginPath(); cx.ellipse(x, y, 24 * s, 6 * s, 0, 0, 6.283); cx.fill();
@@ -321,24 +408,38 @@
         }
         if (l.pts.length < 3) continue;
         const c = l.hue < .5 ? palette[2] : l.hue < .8 ? palette[0] : palette[1];
-        const base = (.08 + l.v * .2) * (.6 + net * .6);
-        for (let j = 1; j < l.pts.length; j++) {
-          const k = j / l.pts.length;
+        const base = (.08 + l.v * .2) * (.6 + net * .6), n = l.pts.length, CH = 4;   // 4 alpha steps per line, 1 stroke each
+        for (let s = 0; s < CH; s++) {
+          const j0 = Math.floor(n * s / CH), j1 = s === CH - 1 ? n - 1 : Math.floor(n * (s + 1) / CH);
+          if (j1 <= j0) continue;
+          const k = (j0 + j1) / 2 / n;
           cx.strokeStyle = `rgba(${c},${Math.min(.8, base * k * k)})`; cx.lineWidth = (.5 + l.v * 1.1 * k) * DPR;
-          cx.beginPath(); cx.moveTo(l.pts[j - 1][0], l.pts[j - 1][1]); cx.lineTo(l.pts[j][0], l.pts[j][1]); cx.stroke();
+          cx.beginPath(); cx.moveTo(l.pts[j0][0], l.pts[j0][1]);
+          for (let j = j0 + 1; j <= j1; j++) cx.lineTo(l.pts[j][0], l.pts[j][1]);
+          cx.stroke();
         }
       }
 
       // ---- meteors hook = shooting stars (meteor shower when busy) ----
       if (S.meteors && Math.random() < .0008 + react.meteors ** 1.5 * .07) shooters.push({ x: Math.random() * W, y: Math.random() * H * .5,
         vx: (Math.random() < .5 ? -1 : 1) * (.5 + Math.random() * .6) * W, vy: H * (.2 + Math.random() * .3), life: 1 });
+      if (Date.now() - showerAt > 60000) { SHOWER = showerNow(); showerAt = Date.now(); }
+      if (S.meteors && S.showers && SHOWER && SHOWER.night && Math.random() < dt * (.012 + .03 * Math.min(1, SHOWER.zhr / 100))) {
+        const rq = project(SHOWER.ra, SHOWER.dec, Lnow);       // radiant above the horizon: streaks fly away from it
+        if (rq) for (let k = 0; k < 4; k++) {
+          const th = Math.random() * 6.283, d = (.06 + Math.random() * .3) * Math.min(W, H), sp = (.45 + Math.random() * .5) * W;
+          const x = rq[0] + Math.cos(th) * d, y = rq[1] + Math.sin(th) * d;
+          if (x < 0 || x > W || y < 0 || y > H) continue;
+          shooters.push({ x, y, vx: Math.cos(th) * sp, vy: Math.sin(th) * sp, life: 1 }); break;
+        }
+      }
       for (let i = shooters.length - 1; i >= 0; i--) {
         const m = shooters[i]; m.life -= dt * 1.5;
         if (m.life <= 0) { shooters.splice(i, 1); continue; }
         const x2 = m.x + m.vx * dt, y2 = m.y + m.vy * dt, tx = m.x - m.vx * .15, ty = m.y - m.vy * .15;
-        const g = cx.createLinearGradient(tx, ty, x2, y2);
-        g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, `rgba(255,255,255,${m.life * .85})`);
-        cx.strokeStyle = g; cx.lineWidth = 1.3 * DPR; cx.beginPath(); cx.moveTo(tx, ty); cx.lineTo(x2, y2); cx.stroke();
+        const len = Math.hypot(x2 - tx, y2 - ty);
+        cx.save(); cx.translate(tx, ty); cx.rotate(Math.atan2(y2 - ty, x2 - tx)); cx.globalAlpha = m.life;
+        cx.drawImage(METEOR, 0, -1.3 * DPR, len, 2.6 * DPR); cx.restore();
         m.x = x2; m.y = y2;
       }
 

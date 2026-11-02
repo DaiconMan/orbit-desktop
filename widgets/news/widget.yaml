@@ -1,0 +1,22 @@
+id: news
+name: News
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Headlines from the news provider's RSS feed (up to two lines each) with their publication time. Hidden while there are no items."
+needs: [time, news]
+default_size:
+  width: auto
+  height: auto
+settings:
+  count:
+    type: integer
+    default: 5
+    min: 1
+    max: 10
+    description: "Headlines shown"
+  source_label:
+    type: string
+    default: "NHK"
+    description: "Label shown in the header before the update age (match it to the feed configured for the news provider)"

@@ -1,0 +1,3 @@
+.m-homenet .ip { opacity: .35; overflow: hidden; text-overflow: ellipsis; }
+.m-homenet .lan { transition: opacity 2s ease; }
+.m-homenet.away .lan { opacity: .35; }

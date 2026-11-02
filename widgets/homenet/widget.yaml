@@ -1,0 +1,18 @@
+id: homenet
+name: Home Net
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "HOME / AWAY, Tailscale, NAS shares, ping sparklines for the configured targets and the last speed test."
+needs: [network]
+default_size:
+  width: 25vw
+  height: auto
+settings:
+  speed_full_scale_mbps:
+    type: number
+    default: 1000
+    min: 10
+    max: 100000
+    description: "Speed bars are full at this many Mbps"

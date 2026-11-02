@@ -1,0 +1,24 @@
+id: tonight
+name: Tonight
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Tonight's sky in words: moon phase and age, planets above the horizon, the ISS, the next meteor shower and sunrise / sunset. Computed locally for your location."
+needs: [time, location, iss, weather]
+default_size:
+  width: auto
+  height: auto
+settings:
+  iss:
+    type: boolean
+    default: true
+    description: "ISS row (needs providers.iss.enabled: true)"
+  meteors:
+    type: boolean
+    default: true
+    description: "Next meteor shower peak (Japanese names)"
+  sun:
+    type: boolean
+    default: true
+    description: "Sunrise / sunset from the weather forecast"

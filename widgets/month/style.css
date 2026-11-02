@@ -1,0 +1,12 @@
+/* month calendar */
+.mcal { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: calc(var(--vh) * .35); text-align: center; font-variant-numeric: tabular-nums; }
+.mcal .w { font-size: var(--t-xs); opacity: .38; letter-spacing: .06em; padding-bottom: calc(var(--vh) * .5); }
+.mcal .d { position: relative; height: calc(var(--vh) * 2.75); line-height: calc(var(--vh) * 2.5); opacity: .78; }
+.mcal .d.o { opacity: .16; }
+.mcal .d.sun, .mcal .d.hol { color: #ff9f8f; }
+.mcal .d.sat { color: #9cc0ff; }
+.mcal .d.past { opacity: .4; }
+.mcal .d.today > span { display: inline-block; min-width: calc(var(--vh) * 2.4); height: calc(var(--vh) * 2.4); line-height: calc(var(--vh) * 2.4); border-radius: 99px; opacity: 1;
+  box-shadow: inset 0 0 0 1px rgb(var(--c)); color: #fff; }
+.mcal .d.today { opacity: 1; }
+.mcal .d i { position: absolute; left: 50%; bottom: 0; width: calc(var(--vh) * .42); height: calc(var(--vh) * .42); margin-left: calc(var(--vh) * -.21); border-radius: 50%; background: rgb(var(--c)); opacity: .85; }

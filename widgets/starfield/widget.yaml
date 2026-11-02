@@ -1,11 +1,11 @@
 id: starfield
 name: Starfield
-version: "1.0.0"
+version: "1.1.0"
 author: DaiconMan
 license: MIT
 kind: background
-description: "The real night sky over your location (stars, Milky Way, planets, Moon, Sgr A*) with meteors, network streamlines and an occasional UFO."
-needs: [system, audio, nowPlaying, location]
+description: "The real night sky over your location (stars, Milky Way, planets, Moon, Sgr A*, ISS) with meteors and meteor-shower radiants, network streamlines, an occasional UFO and an optional blurred artwork backdrop."
+needs: [system, audio, nowPlaying, location, iss]
 assets:
   - data/stars.6.json
 reactions:
@@ -22,10 +22,10 @@ reactions:
 settings:
   fps:
     type: integer
-    default: 30
+    default: 20
     min: 10
     max: 60
-    description: "Frame-rate cap (30 keeps GPU use low)"
+    description: "Frame-rate cap while something moves; a quiet sky runs at half of it (20 suits a fanless MacBook Air)"
   milky_way:
     type: boolean
     default: true
@@ -46,6 +46,14 @@ settings:
   meteors:
     type: boolean
     default: true
+  showers:
+    type: boolean
+    default: true
+    description: "On the peak night of an annual meteor shower, extra meteors fly away from its radiant"
+  iss:
+    type: boolean
+    default: true
+    description: "Draw the ISS when it is above the horizon (needs providers.iss)"
   streamline_count:
     type: integer
     default: 90
@@ -55,6 +63,10 @@ settings:
     type: boolean
     default: true
     description: "Easter egg: a UFO crosses the sky every few minutes"
+  art_backdrop:
+    type: boolean
+    default: false
+    description: "Blurred artwork of the playing track behind everything (opacity .16, slow fades)"
   vignette:
     type: boolean
     default: true

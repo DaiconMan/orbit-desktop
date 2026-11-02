@@ -1,15 +1,42 @@
-.stage { display: flex; align-items: flex-end; gap: calc(3 * var(--vw)); opacity: 0; transform: translateY(16px);
-  transition: opacity 1.4s ease, transform 1.4s ease; }
-.stage.on { opacity: 1; transform: none; }
-.cover { width: calc(17 * var(--vh)); height: calc(17 * var(--vh)); border-radius: 10px; object-fit: cover; background: rgba(255,255,255,.05);
-  filter: brightness(.82) saturate(.95); box-shadow: 0 16px 40px rgba(0,0,0,.55); flex: none; }
-.meta { padding-bottom: calc(.4 * var(--vh)); min-width: 0; }
-.label { font: 600 calc(1.1 * var(--vh)) var(--mono); letter-spacing: .3em; opacity: .6; margin-bottom: calc(1.5 * var(--vh)); white-space: nowrap; }
-.label .src { color: rgb(var(--c)); }
-.title { font-size: calc(3.2 * var(--vh)); font-weight: 700; line-height: 1.08; text-shadow: 0 6px 30px rgba(0,0,0,.5);
+/* Now Playing (prototype .stage): glides in from the left when playback starts; when it stops it
+   dissolves over ~80 s. The frame clips at its own box, so the glide starts from far left exactly as in
+   the prototype but appears from the frame's left edge; a 6vw feather (mask) softens that edge while
+   the stage travels and slides away once it has arrived. Padding keeps the cover shadow and the
+   title glow inside the frame - anchor the widget 4vh lower than the prototype's 33vh (see README). */
+.wrap { padding: calc(2 * var(--vh)) calc(3 * var(--vw)) calc(4 * var(--vh)) 0;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 calc(6 * var(--vw)));
+  -webkit-mask-size: calc(100% + 6 * var(--vw)) 100%; -webkit-mask-repeat: no-repeat; -webkit-mask-position: 0 0;
+  mask-image: linear-gradient(to right, transparent, #000 calc(6 * var(--vw)));
+  mask-size: calc(100% + 6 * var(--vw)) 100%; mask-repeat: no-repeat; mask-position: 0 0; }
+.wrap.on { -webkit-mask-position: calc(-6 * var(--vw)) 0; mask-position: calc(-6 * var(--vw)) 0;
+  transition: -webkit-mask-position 1.8s cubic-bezier(.16,1,.3,1), mask-position 1.8s cubic-bezier(.16,1,.3,1); }
+.wrap.fade { transition: -webkit-mask-position 80s linear, mask-position 80s linear; }
+
+.stage { display: flex; align-items: flex-end; gap: calc(2.4 * var(--vw));
+  opacity: 0; transform: translateX(calc(-70 * var(--vw))); will-change: transform, opacity; }
+.stage.on { opacity: 1; transform: none; filter: none;
+  transition: opacity 1.2s ease-out, transform 1.8s cubic-bezier(.16,1,.3,1), filter 1.6s ease; }
+.stage.fade { opacity: 0; transform: translateX(calc(-2 * var(--vw))); filter: saturate(.3) blur(4px);
+  transition: opacity 80s cubic-bezier(.45,0,.7,.5), transform 80s cubic-bezier(.4,0,.8,.5), filter 80s linear; }
+.stage.off { transition: none; opacity: 0; transform: translateX(calc(-70 * var(--vw))); filter: none; }
+.stage .meta { opacity: 0; transform: translateX(calc(-3 * var(--vw)));
+  transition: opacity 1.2s ease-out .15s, transform 2s cubic-bezier(.16,1,.3,1) .15s; }
+.stage.on .meta, .stage.fade .meta { opacity: 1; transform: none; }
+.stage.off .meta { transition: none; }
+
+.cover { position: relative; flex: none; width: calc(17 * var(--vh)); height: calc(17 * var(--vh)); border-radius: 10px; overflow: hidden;
+  background: rgba(255,255,255,.04); box-shadow: 0 16px 40px rgba(0,0,0,.55); }
+.cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0;
+  transition: opacity 1.4s ease; filter: brightness(.8) saturate(.85); }
+.cover img.show { opacity: 1; }
+.meta { max-width: calc(var(--mw, 32) * var(--vw)); padding-bottom: calc(.4 * var(--vh)); min-width: 0; }
+.eb { font: 500 calc(1.1 * var(--vh)) var(--mono); letter-spacing: .3em; opacity: .5; text-transform: uppercase; white-space: nowrap;
+  margin-bottom: calc(1.5 * var(--vh)); }
+.eb .src { color: rgb(var(--c)); }
+.title { font-size: calc(3.2 * var(--vh)); font-weight: 700; line-height: 1.1; text-shadow: 0 6px 30px rgba(0,0,0,.5);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.artist { font-size: calc(1.8 * var(--vh)); margin-top: calc(1.3 * var(--vh)); opacity: .9; }
-.album { font-size: calc(1.35 * var(--vh)); margin-top: calc(.4 * var(--vh)); opacity: .55; }
-.bar { margin-top: calc(1.6 * var(--vh)); width: calc(22 * var(--vw)); height: 2px; background: rgba(255,255,255,.15); }
-.bar i { display: block; height: 100%; width: 0; background: rgb(var(--c)); box-shadow: 0 0 10px rgb(var(--c)); }
+.artist { font-size: calc(1.9 * var(--vh)); margin-top: calc(1.2 * var(--vh)); opacity: .9; }
+.album { font-size: calc(1.3 * var(--vh)); margin-top: calc(.4 * var(--vh)); opacity: .55; }
+.bar { margin-top: calc(1.6 * var(--vh)); width: calc(22 * var(--vw)); height: 2px; background: rgba(255,255,255,.14); }
+.bar i { display: block; height: 100%; width: 0; background: rgba(255,255,255,.7); }
 [hidden] { display: none !important; }

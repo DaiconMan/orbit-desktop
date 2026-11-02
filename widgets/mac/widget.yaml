@@ -1,0 +1,11 @@
+id: mac
+name: Mac
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Battery, free disk space, Time Machine and active (input) time today as tiles."
+needs: [mac]
+default_size:
+  width: 16vw
+  height: auto

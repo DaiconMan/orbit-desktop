@@ -1,0 +1,11 @@
+/* week agenda: day header + event rows */
+.agd .dy { display: flex; align-items: baseline; gap: calc(var(--vh) * .9); margin-top: calc(var(--vh) * 1.2); font-size: var(--t-xs); letter-spacing: .12em; }
+.agd .dy:first-child { margin-top: 0; }
+.agd .dy b { font-weight: 500; opacity: .75; }
+.agd .dy span { opacity: .42; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agd .dy .hol { color: #ff9f8f; opacity: .8; }
+.agd .ev { display: grid; grid-template-columns: 4.6em 1fr; gap: .6em; align-items: baseline; line-height: calc(var(--vh) * 2.6); }
+.agd .ev .tm { font-size: var(--t-xs); opacity: .45; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.agd .ev .n { font: 400 var(--t-m) var(--disp); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agd .ev .n i { display: inline-block; width: calc(var(--vh) * .55); height: calc(var(--vh) * .55); border-radius: 50%; margin-right: calc(var(--vh) * .7); vertical-align: middle; opacity: .8; }
+.agd .more { font-size: var(--t-xs); opacity: .38; margin-top: calc(var(--vh) * .2); letter-spacing: .1em; }

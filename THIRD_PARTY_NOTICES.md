@@ -51,10 +51,26 @@ need an Open-Meteo API plan.
 No JavaScript libraries are vendored. YAML is parsed on the host by the project's own
 `host/dev-server/miniyaml.py`, so js-yaml is **not** included.
 
+Air quality (`providers.weather.air`) comes from the Open-Meteo Air Quality API (CAMS data, same
+CC BY 4.0 licence and attribution). Surface pressure uses the same forecast API.
+
 ## Optional external services (no code or data redistributed)
-* iTunes Search API (artwork fallback, opt-in)
-* ipinfo.io (IP geolocation, opt-in)
-* CoreLocationCLI (optional local tool, MIT, installed separately via Homebrew)
+All of these are off by default and fetched only by the local host, never by widgets.
+
+| service | provider | terms / licence |
+|---|---|---|
+| iTunes Search API | `now_playing.itunes_artwork_fallback` | Apple Media Services terms |
+| ipinfo.io | `location.mode: ip` | ipinfo.io terms (free tier) |
+| Where the ISS at? (`api.wheretheiss.at`) | `iss` | free public API, rate-limited (~1 req/s) |
+| P2P地震情報 (`api.p2pquake.net`), JMA earthquake reports | `quakes` | P2PQuake API terms; source data: Japan Meteorological Agency |
+| holidays-jp (`holidays-jp.github.io`) | `holidays` | MIT; data from the Cabinet Office of Japan |
+| Frankfurter (`api.frankfurter.app`) | `fx` | free, open source (MIT); ECB euro foreign exchange reference rates |
+| NHK News RSS (`www.nhk.or.jp/rss`) or the feed you configure | `news` | headlines only, shown for personal use; NHK's terms of use apply (no redistribution) |
+| Wikipedia (`ja.wikipedia.org` API, Wikimedia `api.wikimedia.org` feed) | `onthisday` | text CC BY-SA 4.0; Wikimedia API terms (User-Agent sent) |
+| The Space Devs Launch Library 2 (`ll.thespacedevs.com`) | `launches` | free tier (~15 req/h); results cached 3 h |
+| NOAA SWPC (`services.swpc.noaa.gov`) | `kp` | US government work, public domain |
+| GitHub API via the `gh` CLI | `github`, `contrib`, `rfc` | GitHub Terms of Service; uses your own `gh` login |
+| CoreLocationCLI | `location.mode: corelocation` | MIT, optional local tool installed separately via Homebrew |
 
 These are subject to their own terms.
 

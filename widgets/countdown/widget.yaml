@@ -1,0 +1,16 @@
+id: countdown
+name: Countdown
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Time until the next meeting, the next public holiday, the weekly Claude usage reset and the next meteor shower peak."
+needs: [time, calendar, holidays, claudeUsage]
+default_size:
+  width: 16vw
+  height: auto
+settings:
+  meteors:
+    type: boolean
+    default: true
+    description: "Show the next annual meteor shower peak"

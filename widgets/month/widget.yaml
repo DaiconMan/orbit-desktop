@@ -1,0 +1,20 @@
+id: month
+name: Month Calendar
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Month calendar (Sunday-first): today ringed, Sundays and public holidays in red, Saturdays in blue, dots on days with calendar events, and this month's holidays listed underneath."
+needs: [time, calendar, holidays]
+default_size:
+  width: auto
+  height: auto
+settings:
+  event_dots:
+    type: boolean
+    default: true
+    description: "Dot under days that have calendar events (within the range the calendar provider exports)"
+  holiday_list:
+    type: boolean
+    default: true
+    description: "List this month's holidays under the grid"

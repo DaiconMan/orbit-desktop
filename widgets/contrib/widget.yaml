@@ -1,0 +1,18 @@
+id: contrib
+name: GitHub Contributions
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "GitHub contribution heatmap for the last weeks (Sunday-first), with the total, this year's count and the current streak. Needs providers.contrib.enabled: true."
+needs: [time, contrib]
+default_size:
+  width: auto
+  height: auto
+settings:
+  weeks:
+    type: integer
+    default: 13
+    min: 4
+    max: 26
+    description: "Weeks shown, including the current one"

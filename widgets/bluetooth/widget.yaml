@@ -1,0 +1,11 @@
+id: bluetooth
+name: Bluetooth
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Connected Bluetooth devices with battery levels; hidden when none is connected."
+needs: [bluetooth]
+default_size:
+  width: 16vw
+  height: auto

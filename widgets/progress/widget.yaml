@@ -1,0 +1,20 @@
+id: progress
+name: Progress
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Thin progress bars for how much of the day, week, month and year has passed."
+needs: [time]
+default_size:
+  width: auto
+  height: auto
+settings:
+  bars:
+    type: list
+    items: { type: enum, options: [day, week, month, year], default: day }
+    default: [day, week, month, year]
+    description: "Which bars to show, in order"
+  week_starts_monday:
+    type: boolean
+    default: true

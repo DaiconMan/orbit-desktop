@@ -1,3 +1,15 @@
+/* Big thin clock + date (prototype .idle). The bottom of the date is the page's 11vh alignment line.
+   With `meeting` on, a row for the meeting countdown is reserved underneath (the frame cannot draw
+   outside itself), so anchor the widget that much lower - see README. */
+.idle { opacity: 0; transition: opacity 2s ease; }
+.idle.on { opacity: 1; }
 .clock { font-size: calc(var(--size, 15) * var(--vh)); font-weight: 200; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; white-space: nowrap; }
 .date { font-size: calc(2 * var(--vh)); opacity: .6; margin-top: calc(1.2 * var(--vh)); letter-spacing: .08em; white-space: nowrap; }
-[hidden] { display: none; }
+/* meeting countdown: hangs below the date; its row is always reserved, so the clock never moves */
+.mtg { height: calc(1.9 * var(--vh)); margin-top: calc(1.3 * var(--vh)); display: flex; align-items: center; gap: calc(.9 * var(--vh));
+  font: 500 calc(1.3 * var(--vh)) var(--mono); letter-spacing: .04em; white-space: nowrap; opacity: 0; transition: opacity 1.5s ease; }
+.mtg.on { opacity: .8; }
+.mtg i { width: calc(.7 * var(--vh)); height: calc(.7 * var(--vh)); border-radius: 50%; background: rgb(var(--c)); flex: none; }
+.mtg b { font: 500 calc(1.5 * var(--vh)) var(--font); letter-spacing: 0; max-width: calc(30 * var(--vw)); overflow: hidden; text-overflow: ellipsis; }
+.mtg span { opacity: .6; }
+[hidden] { display: none !important; }

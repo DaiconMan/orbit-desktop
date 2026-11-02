@@ -1,0 +1,7 @@
+/* on this day: observances line + year / event rows */
+.otd .obs { font: 400 var(--t-m) var(--disp); line-height: 1.5; opacity: .9; margin-bottom: calc(var(--vh) * 1.2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.otd .ev { display: grid; grid-template-columns: 3.4em 1fr; gap: .8em; align-items: baseline; padding: calc(var(--vh) * .5) 0; }
+.otd .ev .y { font-size: var(--t-xs); opacity: .45; letter-spacing: .06em; text-align: right; font-variant-numeric: tabular-nums; }
+.otd .ev .x { font: 400 var(--t-s) var(--disp); line-height: 1.5; opacity: .85;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

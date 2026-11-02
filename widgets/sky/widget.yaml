@@ -1,0 +1,20 @@
+id: sky
+name: Sky Chart
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Small alt/az chart of the Sun, Moon (with phase), planets and the ISS above your location: zenith in the centre, north up, east left, as when looking up."
+needs: [time, location, iss]
+default_size:
+  width: auto
+  height: auto
+settings:
+  iss:
+    type: boolean
+    default: true
+    description: "Plot the ISS (needs providers.iss.enabled: true)"
+  labels:
+    type: boolean
+    default: true
+    description: "Japanese name labels next to each body (dropped when they would collide)"

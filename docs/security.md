@@ -88,6 +88,18 @@ Widgets never fetch. The only outbound requests the host makes are:
 | `i.scdn.co` | Spotify artwork for the current track | nothing beyond the request |
 | `networkQuality` (Apple) | only `providers.speedtest.enabled: true` | bandwidth test |
 | ping / TCP connect | only the configured `providers.ping.targets` | none |
+| `air-quality-api.open-meteo.com` | `providers.weather.air` (with weather) | coordinates rounded to 0.01 deg |
+| `api.wheretheiss.at` | only `providers.iss.enabled` | nothing beyond the request |
+| `api.p2pquake.net` (HTTPS) | only `providers.quakes.enabled` | nothing beyond the request |
+| `api.p2pquake.net` (WebSocket, host app) | EEW, `settings.json` `eew.enabled` | nothing beyond the request |
+| `mreversegeocoder.gsi.go.jp` (host app) | EEW prefecture lookup, every 30 min | coordinates |
+| `holidays-jp.github.io` | only `providers.holidays.enabled` | nothing beyond the request |
+| `api.frankfurter.app` | only `providers.fx.enabled` | currency pair |
+| the configured RSS URL (default `www.nhk.or.jp`) | only `providers.news.enabled` | nothing beyond the request |
+| `ja.wikipedia.org` | only `providers.onthisday.enabled` | today's date (page title) |
+| `ll.thespacedevs.com` | only `providers.launches.enabled` | nothing beyond the request |
+| `services.swpc.noaa.gov` | only `providers.kp.enabled` | nothing beyond the request |
+| `api.github.com` via your `gh` CLI | only `providers.github` / `contrib` / `rfc` enabled | authenticated as you (by `gh`) |
 
 The runtime page itself has a CSP of `connect-src 'self'`, so it can only talk to the local
 server.

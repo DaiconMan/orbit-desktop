@@ -1,0 +1,34 @@
+/* 緊急地震速報 / 津波 banner (prototype #alerts / .al / .edge; host-screen units) */
+body { font-family: var(--font); }
+.alerts { position: relative; display: flex; flex-direction: column; color: rgba(255,255,255,.92); }
+.al { display: none; position: relative; padding: calc(var(--vh) * 2.4) calc(var(--vw) * 6) calc(var(--vh) * 2.2); background: rgb(12,6,8);
+  border-bottom: 1px solid rgba(255,90,90,.5); font-family: var(--font); }
+.al.on { display: block; animation: alin .8s ease-out; }
+@keyframes alin { from { opacity: 0; } to { opacity: 1; } }
+.al::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--vw) * .5); background: #ff4d4d; }
+.al .top { display: flex; align-items: center; gap: calc(var(--vh) * 1.4); font: 500 calc(var(--vh) * 1.1) var(--mono); letter-spacing: .3em; color: #ff8a8a; }
+.al .top .tag { padding: calc(var(--vh) * .15) calc(var(--vh) * .8); border: 1px solid currentColor; border-radius: 3px; letter-spacing: .2em; }
+.al .main { display: flex; align-items: baseline; gap: calc(var(--vh) * 3); margin-top: calc(var(--vh) * 1); }
+.al h1 { margin: 0; font: 700 calc(var(--vh) * 3.2) var(--font); color: #ff5d5d; letter-spacing: .04em; white-space: nowrap; }
+.al .epi { font: 400 calc(var(--vh) * 2.6) var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.al .epi small { font: 500 calc(var(--vh) * 1.3) var(--mono); opacity: .6; margin-left: calc(var(--vh) * 1.4); }
+.al .el { margin-left: auto; text-align: right; white-space: nowrap; }
+.al .el b { font: 200 calc(var(--vh) * 6) var(--font); font-variant-numeric: tabular-nums; line-height: 1; }
+.al .el span { display: block; font: 500 calc(var(--vh) * 1.1) var(--mono); letter-spacing: .2em; opacity: .55; }
+.al .areas { margin-top: calc(var(--vh) * 1.2); font: 500 calc(var(--vh) * 1.5) var(--font); line-height: 1.6; opacity: .9;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.al .areas em { font-style: normal; color: #ff9a8a; font: 500 calc(var(--vh) * 1.1) var(--mono); letter-spacing: .2em; margin-right: calc(var(--vh) * 1.2); }
+.al .areas span { margin-right: calc(var(--vh) * 1.6); white-space: nowrap; }
+.al .warn { color: #ffb37a; }
+.al .note { margin-top: calc(var(--vh) * .8); font: 500 calc(var(--vh) * 1.1) var(--mono); letter-spacing: .14em; color: #ffb37a; }
+.al.cancel h1 { color: rgba(255,255,255,.6); }
+.al.cancel::before { background: rgba(255,255,255,.3); }
+.al.tsu { border-bottom-color: rgba(255,180,90,.5); }
+.al.tsu::before { background: #ffa64d; }
+.al.tsu h1 { color: #ffae5d; } .al.tsu .top { color: #ffc48a; }
+.al.tsu.major h1 { color: #ff5d9e; } .al.tsu.major::before { background: #ff4d8a; }
+/* edge flash: the prototype glows along the whole screen edge; a frame can only glow along its own edges */
+.edge { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0;
+  box-shadow: inset 0 0 calc(var(--vh) * 5) calc(var(--vh) * .6) rgba(255,50,50,.55); }
+.edge.go { animation: edgeonce 3.2s ease-out 1; }
+@keyframes edgeonce { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }

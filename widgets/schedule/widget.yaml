@@ -1,37 +1,63 @@
 id: schedule
 name: Schedule
-version: "1.0.0"
+version: "1.1.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Gantt-style timeline of today's calendar events around the current time, with all-day chips and a NEXT countdown."
+description: "One-day horizontal timeline of today's calendar: thin bars on an axis, labels on leader lines, all-day chips and NOW / NEXT."
 needs: [calendar, time]
 default_size:
-  width: 40vw
+  width: 54vw
   height: auto
 settings:
   title:
     type: string
-    default: "SCHEDULE"
-  hours_before:
-    type: number
-    default: 2
+    default: "TODAY"
+    description: "Eyebrow at the start of the header"
+  start_hour:
+    type: integer
+    default: 8
     min: 0
-    max: 12
-  hours_after:
-    type: number
-    default: 10
+    max: 23
+    description: "The axis starts here (earlier when an event or the current time needs it)"
+  end_hour:
+    type: integer
+    default: 20
     min: 1
     max: 24
+    description: "The axis ends here (later when an event or the current time needs it)"
   max_rows:
     type: integer
-    default: 7
+    default: 10
     min: 1
     max: 20
+    description: "Maximum number of timed events shown"
   show_all_day:
     type: boolean
     default: true
   backdrop:
     type: boolean
     default: true
-    description: "Soft dark backdrop behind the chart for legibility"
+    description: "Soft dark scrim behind the timeline for legibility"
+  bleed:
+    type: number
+    default: 0
+    min: 0
+    max: 10
+    description: "Host vw on each side reserved for the scrim (the timeline is inset by this much)"
+  hours_before:
+    type: number
+    default: 2
+    min: 0
+    max: 12
+    description: "Deprecated since 1.1.0 (the axis now spans the day); accepted so older layouts stay valid"
+  hours_after:
+    type: number
+    default: 10
+    min: 1
+    max: 24
+    description: "Deprecated since 1.1.0 (the axis now spans the day); accepted so older layouts stay valid"
+  demo:
+    type: boolean
+    default: false
+    description: "Show a dense synthetic day instead of the calendar (preview, like the prototype's ?cal=demo)"

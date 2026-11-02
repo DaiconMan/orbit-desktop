@@ -1,12 +1,14 @@
-.wx { font: 500 calc(1.35 * var(--vh)) var(--mono); }
-.wx .now { display: flex; align-items: baseline; gap: calc(1.2 * var(--vh)); font-family: var(--font); white-space: nowrap; }
-.wx .ic { font-size: calc(4.6 * var(--vh)); }
-.wx .t { font-size: calc(6 * var(--vh)); font-weight: 200; }
-.wx .d { font-size: calc(1.6 * var(--vh)); opacity: .65; margin-left: calc(.6 * var(--vh)); }
-.wx .place { opacity: .5; letter-spacing: .3em; font-size: calc(1.1 * var(--vh)); margin-bottom: calc(1 * var(--vh)); white-space: nowrap; }
-.wx .hours, .wx .days { display: flex; gap: calc(2.2 * var(--vh)); margin-top: calc(1.8 * var(--vh)); }
-.wx .cell { text-align: center; opacity: .85; white-space: nowrap; }
-.wx .cell b { display: block; font-size: calc(2.1 * var(--vh)); font-weight: 400; margin: calc(.5 * var(--vh)) 0; font-family: var(--font); }
-.wx .cell small { opacity: .5; }
+/* weather (prototype .wx rules; host-screen units) */
+.wx .now { display: flex; align-items: baseline; gap: calc(var(--vh) * 1.2); font-family: var(--disp); }
+.wx .ic { font-size: calc(var(--vh) * 4.2); }
+.wx .t { font-size: var(--t-hero); font-weight: 200; line-height: 1; }
+.wx .d { font-size: calc(var(--vh) * 1.6); opacity: .65; margin-left: calc(var(--vh) * .6); white-space: nowrap; }
+.wx .hours, .wx .days { display: flex; gap: calc(var(--vh) * 2.2); margin-top: calc(var(--vh) * 1.8); }
+.wx .cell { text-align: center; opacity: .85; }
+.wx .cell b { display: block; font-size: calc(var(--vh) * 2.1); font-weight: 400; margin: calc(var(--vh) * .5) 0; font-family: var(--disp); }
+.wx .cell small { opacity: .5; margin: 0; }
 .wx .rain { color: rgb(120,180,255); }
-.wx .attr { margin-top: calc(1.4 * var(--vh)); font-size: calc(.95 * var(--vh)); opacity: .3; letter-spacing: .08em; }
+.wx .aux { margin-top: calc(var(--vh) * 1); font-size: var(--t-xs); letter-spacing: .12em; opacity: .6; line-height: 1.7; max-width: 100%; }
+.wx .aux > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wx .aux .warn { opacity: 1; }
+.wx .attr { margin-top: calc(var(--vh) * 1.4); font-size: calc(var(--vh) * .95); opacity: .3; letter-spacing: .08em; white-space: nowrap; }

@@ -1,0 +1,28 @@
+id: week
+name: Week Agenda
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Agenda of the coming days from your calendar (from tomorrow, since today is on the schedule timeline), grouped by day with holidays marked. Hides itself when nothing is coming up."
+needs: [time, calendar, holidays]
+default_size:
+  width: auto
+  height: auto
+settings:
+  days:
+    type: integer
+    default: 7
+    min: 1
+    max: 8
+    description: "Days ahead after tomorrow's (the calendar provider exports today + 8 days)"
+  max_rows:
+    type: integer
+    default: 9
+    min: 3
+    max: 20
+    description: "Maximum rows (day headers + events) before the rest is cut"
+  include_today:
+    type: boolean
+    default: false
+    description: "Also list today's events"

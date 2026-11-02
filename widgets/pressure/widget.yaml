@@ -1,0 +1,18 @@
+id: pressure
+name: Pressure
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Surface pressure for the past 12 h and the next 24 h with a headache warning on steep drops."
+needs: [weather]
+default_size:
+  width: 16vw
+  height: auto
+settings:
+  drop_hpa:
+    type: number
+    default: 4
+    min: 1
+    max: 20
+    description: "Warn (頭痛注意) when pressure falls at least this much within 6 hours"
