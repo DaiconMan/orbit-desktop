@@ -23,6 +23,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; col
   column-gap: var(--colgap, 3vw); align-items: start; opacity: 0; transition: opacity 2.4s ease; overflow: hidden; }
 .zone .page.on { opacity: 1; }
 .zone .col { display: flex; flex-direction: column; gap: var(--gap, 3.4vh); min-width: 0; }
+.zone .col.fill { grid-column: 1 / -1; }   /* fill: true spans every column of the page */
 .zone .dots { position: absolute; left: 0; bottom: 0; display: flex; gap: .8vh; }
 .zone .dots i { width: .45vh; height: .45vh; border-radius: 50%; background: #fff; opacity: .18; transition: opacity 2.4s ease; }
 .zone .dots i.on { opacity: .6; }
@@ -37,3 +38,9 @@ body.alerting #widgets .slot:not(.nodim) { opacity: .18; transition: opacity .8s
 .edge.go { animation: edgeonce 3.2s ease-out 1; }
 @keyframes edgeonce { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
 
+/* page groups of free widgets crossfade like the prototype's centre pages */
+#widgets > .slot.paged { transition: opacity 2.4s ease, visibility 0s; }
+#widgets > .slot.paged.pg-off { opacity: 0 !important; visibility: hidden; transition: opacity 2.4s ease, visibility 0s linear 2.4s; }
+.pagedots { position: fixed; z-index: 11; display: flex; gap: .8vh; pointer-events: none; }
+.pagedots i { width: .45vh; height: .45vh; border-radius: 50%; background: #fff; opacity: .18; transition: opacity 2.4s ease; }
+.pagedots i.on { opacity: .6; }

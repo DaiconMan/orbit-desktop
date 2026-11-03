@@ -131,6 +131,7 @@ class State:
             "allWidgets": r.get("allWidgets", r["widgets"]),
             "catalog": r.get("catalog", []),
             "arranged": r.get("arranged", False),
+            "pageSeconds": r.get("pageSeconds", 30),
             "signals": signals,
             "providers": {"weather": prov["weather"]["enabled"], "nowPlaying": prov["now_playing"]["enabled"],
                           "claudeUsage": prov["claude_usage"]["enabled"], "speedtest": prov["speedtest"]["enabled"],
@@ -222,6 +223,8 @@ def apply_user_settings(res, warnings):
         w.setdefault("scale", 1)
         w["base"] = dict(w["position"], scale=w["scale"])
     res["hidden"], res["layoutOverrides"] = [], {}
+    rz = [z["rotate_seconds"] for z in res.get("zones", {}).values() if z.get("rotate_seconds")]
+    res["pageSeconds"] = rz[0] if rz else 30
     try:
         with open(oc.USER_SETTINGS, "r", encoding="utf-8") as f:
             st = json.load(f)
@@ -261,6 +264,8 @@ def apply_user_settings(res, warnings):
         res["hidden"] = sorted(hidden)
         res["widgets"] = [w for w in res["widgets"] if w["use"] not in hidden]
     ps = wp.get("page_seconds")
+    if isinstance(ps, (int, float)) and not isinstance(ps, bool) and 5 <= ps <= 3600:
+        res["pageSeconds"] = int(ps)
     if isinstance(ps, (int, float)) and not isinstance(ps, bool) and 5 <= ps <= 3600:
         for z in res.get("zones", {}).values():
             if z.get("rotate_seconds"):

@@ -21,6 +21,8 @@ private final class OrbitMessageProxy: NSObject, WKScriptMessageHandler {
 final class DesktopWindows: NSObject, WKNavigationDelegate {
     private var windows: [NSWindow] = []
     private(set) var editing = false
+    /// widget runtime errors reported by the pages (latest 20), listed by the 設定の警告 dialog
+    private(set) var pluginErrors: [String] = []
     /// HUD editor asked to save: (layout overrides, hidden plugin ids)
     var onSaveLayout: (([String: Any], [String]) -> Void)?
     /// layout editor saved: (arrangement {zones, widgets} or nil = back to layout.yaml, hidden plugin ids)
@@ -172,6 +174,13 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
             let hidden = (body["hidden"] as? [Any] ?? []).compactMap { $0 as? String }
             onSaveArrangement?(arr, hidden)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.setEditing(false) }
+        case "pluginError":
+            if let m = body["message"] as? String {
+                let line = "\(DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .short))  \(m.prefix(300))"
+                if !pluginErrors.contains(where: { $0.hasSuffix(String(m.prefix(300))) }) { pluginErrors.append(line) }
+                if pluginErrors.count > 20 { pluginErrors.removeFirst(pluginErrors.count - 20) }
+                NSLog("[orbit] widget error: \(m)")
+            }
         case "exitEdit":
             setEditing(false)
         default: break

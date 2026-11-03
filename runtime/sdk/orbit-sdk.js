@@ -29,7 +29,8 @@
   let def = null, started = false, initMsg = null;
 
   function reportError(msg) { post({ type: 'error', message: String(msg).slice(0, 400) }); }
-  addEventListener('error', e => reportError(e.message || 'error'));
+  // "Script error." carries no information (the engine hides the details); don't report it
+  addEventListener('error', e => { const m = e.message || 'error'; if (!/^Script error\.?$/.test(m)) reportError(m + (e.lineno ? ` (line ${e.lineno})` : '')); });
   addEventListener('unhandledrejection', e => reportError((e.reason && e.reason.message) || e.reason || 'unhandled rejection'));
   const safe = (fn, ...a) => { try { return fn && fn(...a); } catch (e) { reportError((e && e.stack) || e); } };
 

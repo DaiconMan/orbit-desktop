@@ -1,0 +1,6 @@
+.m-cloud .kv { grid-template-columns: minmax(0, 1fr) auto; }
+.m-cloud .kv .k { overflow: hidden; text-overflow: ellipsis; }
+.m-cloud .kv .v small { margin-left: .6em; }
+.m-cloud .cl + .cl { margin-top: calc(var(--vh) * .8); }
+.m-cloud .cl .meter { margin-top: calc(var(--vh) * .3); }
+.m-cloud .cl.warn .v { color: #ffb37a; }

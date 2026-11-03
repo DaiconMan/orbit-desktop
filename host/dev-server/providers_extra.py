@@ -76,7 +76,7 @@ class ExtraLoops:
                  ("fx", self.fx_loop), ("news", self.news_loop), ("bluetooth", self.bluetooth_loop),
                  ("onthisday", self.onthisday_loop), ("launches", self.launches_loop), ("kp", self.kp_loop),
                  ("contrib", self.contrib_loop), ("github", self.github_loop), ("sessions", self.sessions_loop),
-                 ("rfc", self.rfc_loop))
+                 ("rfc", self.rfc_loop), ("cloud", self.cloud_loop))
         loops += [fn for k, fn in table if on(k)]
         if on("recent"):
             rec = _load_json(self._recent_cache())
@@ -421,6 +421,59 @@ class ExtraLoops:
             except Exception:
                 pass
             time.sleep(300)
+
+    def _cloud_folders(self):
+        c = self.cfg["cloud"]
+        if c["folders"]:
+            return [(f["name"], os.path.expanduser(f["path"])) for f in c["folders"]]
+        root = os.path.expanduser("~/Library/CloudStorage")
+        try:
+            names = sorted(n for n in os.listdir(root) if not n.startswith(".") and os.path.isdir(os.path.join(root, n)))
+        except OSError:
+            return []
+        return [(n, os.path.join(root, n)) for n in names]
+
+    @staticmethod
+    def _cloud_usage(path, deadline):
+        """Bytes really stored on this Mac (allocated blocks: online-only placeholders count 0) and the number of
+        downloaded files, by walking with lstat (never triggers a download). Stops at the deadline."""
+        used = files = total = 0
+        partial = False
+        for dirpath, dirnames, filenames in os.walk(path):
+            if time.time() > deadline:
+                partial = True
+                break
+            dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+            for n in filenames:
+                try:
+                    st = os.lstat(os.path.join(dirpath, n))
+                except OSError:
+                    continue
+                total += 1
+                if st.st_blocks > 0:
+                    files += 1
+                    used += st.st_blocks * 512
+        return {"used": used, "files": files, "total_files": total, "partial": partial}
+
+    def cloud_loop(self):
+        """Local usage of cloud-synced folders, every interval_minutes (a full walk is heavy: keep it rare)."""
+        c = self.cfg["cloud"]
+        while True:
+            out = []
+            for name, path in self._cloud_folders():
+                if not os.path.isdir(path):
+                    continue
+                u = self._cloud_usage(path, time.time() + 120)
+                label = name.replace("-", " · ", 1) if name.startswith(("OneDrive-", "GoogleDrive-", "Dropbox-", "Box-")) else name
+                out.append(dict(u, name=label))
+            free = None
+            try:
+                st = os.statvfs("/")
+                free = st.f_bavail * st.f_frsize
+            except OSError:
+                pass
+            self.set_extra("cloud", {"folders": out, "warn_bytes": int(c["warn_gb"] * 2 ** 30), "disk_free": free, "at": time.time()})
+            time.sleep(c["interval_minutes"] * 60)
 
     def sessions_loop(self):
         """Local Claude Code sessions (live pids in ~/.claude/sessions); only the cwd basename leaves."""

@@ -50,9 +50,10 @@ SIGNALS = {
     "github": "GitHub review requests and my PRs with CI state (via gh), opt-in",
     "sessions": "Local Claude Code sessions (cwd basenames), opt-in",
     "rfc": "Documents awaiting approval in a GitHub repo (via gh), opt-in, personal",
+    "cloud": "Local disk usage of cloud-synced folders (OneDrive, iCloud-style File Provider folders)",
 }
 SENSITIVE_SIGNALS = {"calendar", "location", "nowPlaying", "claudeUsage", "network", "github", "sessions", "rfc",
-                     "recent", "bluetooth", "contrib"}
+                     "recent", "bluetooth", "contrib", "cloud"}
 
 # Signals the server serves generically at /api/signals/<path> from Providers.get(<name>).
 # name -> (path, providers.<key> that must be enabled (None: always), runtime poll interval in ms)
@@ -74,6 +75,7 @@ GENERIC_SIGNALS = {
     "github": ("github", "github", 300000),
     "sessions": ("sessions", "sessions", 15000),
     "rfc": ("rfc", "rfc", 600000),
+    "cloud": ("cloud", "cloud", 120000),
 }
 
 SETTING_TYPES = {"string", "number", "integer", "boolean", "color", "enum", "length", "list"}
@@ -427,6 +429,8 @@ DEFAULT_PROVIDERS = {
     "fx": {"enabled": False, "base": "USD", "quote": "JPY"},
     "news": {"enabled": False, "url": "https://www.nhk.or.jp/rss/news/cat0.xml", "max_items": 8},
     "bluetooth": {"enabled": False},
+    # folders: [{name, path}]; empty = every folder in ~/Library/CloudStorage (OneDrive, Google Drive, Dropbox, …)
+    "cloud": {"enabled": False, "folders": [], "interval_minutes": 10, "warn_gb": 5},
     "onthisday": {"enabled": False, "lang": "ja"},
     "launches": {"enabled": False},
     "kp": {"enabled": False},
@@ -470,6 +474,8 @@ PROVIDER_SCHEMA = {
     "rfc": {"enabled": ("boolean", None), "repo": ("string?", None), "dir": ("string", None), "file_prefix": ("string", None),
             "status_label": ("string", None), "pending_text": ("string", None), "user_action_text": ("string?", None)},
     **{k: {"enabled": ("boolean", None)} for k in ("iss", "bluetooth", "launches", "kp", "contrib", "sessions")},
+    "cloud": {"enabled": ("boolean", None), "folders": ("list", None), "interval_minutes": ("integer", (5, 1440)),
+              "warn_gb": ("number", (0.1, 10000))},
 }
 
 SIGNAL_PROVIDER = {"weather": "weather", "nowPlaying": "now_playing", "claudeUsage": "claude_usage",
@@ -528,6 +534,14 @@ def _validate_providers(given, errors: list, warnings: list) -> dict:
             continue
         targets.append({"name": tg["name"][:24], "host": tg["host"], "port": port, "method": method})
     out["ping"]["targets"] = targets
+    folders = []
+    for i, fd in enumerate(out["cloud"]["folders"] or []):
+        w = f"providers.cloud.folders[{i}]"
+        if not isinstance(fd, dict) or not isinstance(fd.get("path"), str):
+            errors.append(f"{w}: needs 'path' (and optionally 'name')")
+            continue
+        folders.append({"name": str(fd.get("name") or os.path.basename(fd["path"].rstrip("/")))[:40], "path": fd["path"]})
+    out["cloud"]["folders"] = folders
     for p in out["now_playing"]["players"]:
         if p not in ("music", "spotify"):
             errors.append(f"providers.now_playing.players: unknown player {p!r} (music, spotify)")
@@ -784,8 +798,8 @@ def validate_layout(cfg, plugins: dict) -> dict:
         if not isinstance(w, dict):
             errors.append(f"{where}: must be a mapping with 'use'")
             continue
-        for k in sorted(set(w) - {"use", "position", "settings", "id", "zone", "page", "column", "dim", "scale"}):
-            errors.append(f"{where}.{k}: unknown key (use, position, settings, id, zone, page, column, dim, scale)")
+        for k in sorted(set(w) - {"use", "position", "settings", "id", "zone", "page", "column", "dim", "scale", "fill"}):
+            errors.append(f"{where}.{k}: unknown key (use, position, settings, id, zone, page, column, dim, scale, fill)")
         use = w.get("use")
         m = plugins.get(use)
         if not m:
@@ -797,7 +811,9 @@ def validate_layout(cfg, plugins: dict) -> dict:
         n0 = len(errors)
         settings = apply_settings(m.get("settings"), w.get("settings"), f"{where}.settings ({use})", errors, warnings)
         position = _validate_position(w.get("position"), m.get("default_size") or {}, f"{where}.position", errors)
-        zone, page, column = w.get("zone"), w.get("page", 0), w.get("column", 0)
+        zone, page, column = w.get("zone"), w.get("page", 0 if w.get("zone") else None), w.get("column", 0)
+        if zone is None and page is not None:   # free widget on a rotating page (None = always shown)
+            _check_value({"type": "integer", "min": 0, "max": 40}, page, f"{where}.page", errors)
         if zone is not None:
             if zone not in zones:
                 errors.append(f"{where}.zone: unknown zone {zone!r} (defined: {', '.join(zones) or 'none'})")
@@ -805,6 +821,7 @@ def validate_layout(cfg, plugins: dict) -> dict:
                 _check_value({"type": "integer", "min": 0, "max": 40}, page, f"{where}.page", errors)
                 _check_value({"type": "integer", "min": 0, "max": zones[zone]["columns"] - 1}, column, f"{where}.column", errors)
         _check_value({"type": "boolean"}, w.get("dim", True), f"{where}.dim", errors)
+        _check_value({"type": "boolean"}, w.get("fill", False), f"{where}.fill", errors)
         scale = w.get("scale", 1)
         if not _check_value({"type": "number", "min": 0.3, "max": 4}, scale, f"{where}.scale", errors):
             scale = 1
@@ -818,8 +835,9 @@ def validate_layout(cfg, plugins: dict) -> dict:
             warnings.append(f"{where} ({use}) is an UNOFFICIAL plugin (relies on undocumented data)")
         widgets.append({"instance": f"w{i}", "use": use, "name": m.get("name"), "needs": list(m["needs"]),
                         "settings": settings, "position": position, "assets": list(m.get("assets") or []),
-                        "zone": zone if zone in zones else None, "page": page if zone else 0,
-                        "column": column if zone else 0, "dim": w.get("dim", True) is not False, "scale": scale})
+                        "zone": zone if zone in zones else None, "page": page if zone else (page if isinstance(page, int) and not isinstance(page, bool) else None),
+                        "column": column if zone else 0, "dim": w.get("dim", True) is not False, "scale": scale,
+                        "fill": bool(zone and w.get("fill") is True)})
     if background:
         for s in background["needs"]:
             prov = SIGNAL_PROVIDER.get(s)

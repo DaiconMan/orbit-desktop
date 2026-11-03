@@ -1,0 +1,15 @@
+id: cloud
+name: Cloud Sync
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+description: "Space that cloud-synced folders (OneDrive, Google Drive, Dropbox …) really use on this Mac, and the free disk space."
+needs: [cloud]
+default_size:
+  width: 16vw
+  height: auto
+settings:
+  title:
+    type: string
+    default: "CLOUD SYNC"

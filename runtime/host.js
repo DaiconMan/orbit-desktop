@@ -16,7 +16,8 @@
   const DEFAULT_PALETTE = { a: '90,150,255', b: '230,120,200', c: '70,220,200' };
   const frames = [];            // { id, kind, iframe, slot, needs, init, ready, loads, auto }
   const last = {};              // latest value per signal
-  const runtimeErrors = [];
+  const runtimeErrors = [];     // shown on the desktop (config / security problems)
+  const pluginErrors = [];      // widget runtime errors: host app menu, or on screen with ?debug
   let cfg = null, theme = null, palette = Object.assign({}, DEFAULT_PALETTE);
 
   const getJSON = async url => { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); };
@@ -52,7 +53,7 @@
 
   /* ------------------------------------------------------------ problems panel */
   function renderProblems() {
-    const errs = (cfg ? cfg.errors : []).concat(runtimeErrors);
+    const errs = (cfg ? cfg.errors : []).concat(runtimeErrors, location.search.includes('debug') ? pluginErrors : []);
     // warnings never sit on the desktop: the host app lists them (menu → 設定の警告を表示…); ?debug shows them here
     const warns = cfg && location.search.includes('debug') ? cfg.warnings : [];
     const el = $('problems');
@@ -120,14 +121,21 @@
       if (f.auto.height) f.iframe.style.height = h + 'px';
       f.slot.classList.remove('pending');
       f.slot.classList.toggle('empty', !!f.zoned && h < 2);   // nothing to show: collapse inside a zone
+      if (f.fill) fitFill(f, h);
       layoutChanged();
     } else if (m.type === 'visible') {
       f.slot.classList.toggle('off', !m.on);
       layoutChanged();
     } else if (m.type === 'error') {
+      // a widget's own runtime error is not a desktop-wide problem: log it and let the host app list it
+      // (menu → 設定の警告を表示…); ?debug also shows it on screen
       const msg = `${f.id}: ${String(m.message).slice(0, 300)}`;
-      if (!runtimeErrors.includes(msg) && runtimeErrors.length < 20) { runtimeErrors.push(msg); renderProblems(); }
       console.warn('[orbit plugin]', msg);
+      if (!pluginErrors.includes(msg) && pluginErrors.length < 20) {
+        pluginErrors.push(msg);
+        try { window.webkit.messageHandlers.orbit.postMessage({ type: 'pluginError', message: msg }); } catch (_) {}
+        if (location.search.includes('debug')) renderProblems();
+      }
     }
   });
 
@@ -200,6 +208,21 @@
     }
     return Z.pages[page].children[column];
   }
+  function zoneFill(name, page) {       // full-width row at the top of a page (widgets with fill: true)
+    zoneColumn(name, page, 0);
+    const p = zoneEls[name].pages[page];
+    let c = p.querySelector(':scope > .col.fill');
+    if (!c) { c = document.createElement('div'); c.className = 'col fill'; p.insertBefore(c, p.firstChild); }
+    return c;
+  }
+  // fill: grow / shrink the frame's units until its content just fits the zone height (a few iterations)
+  function fitFill(f, h) {
+    const Z = zoneEls[f.zone]; if (!Z || !Z.paged || h < 2) return;
+    const H = Z.el.clientHeight * .94, target = Math.min(3, Math.max(.4, f.scale * H / h));
+    if (Math.abs(target / f.scale - 1) < .04 || (f.fitIters = (f.fitIters || 0) + 1) > 6) return;
+    f.scale = +target.toFixed(3);
+    if (f.ready) send(f, { type: 'theme', theme: themeMsg(), viewport: viewport(), scale: f.scale });
+  }
   const pageVisible = p => [...p.querySelectorAll('.slot')].some(s => !s.classList.contains('off') && !s.classList.contains('empty'));
   function showPage(Z, i) {
     Z.cur = i;
@@ -227,6 +250,45 @@
       }, Z.z.rotate_seconds * 1000));
     }
   }
+  /* pages of free widgets: every widget with `page: N` belongs to page group N; groups crossfade every
+     cfg.pageSeconds, widgets without a page are always shown. */
+  const FP = { pages: [], cur: null, dots: null };
+  const pagedSlots = () => [...document.querySelectorAll('#widgets > .slot.paged')];
+  function showFreePage(p) {           // p = page number, or null = only the always-shown widgets
+    FP.cur = p;
+    for (const s of pagedSlots()) s.classList.toggle('pg-off', +s.dataset.page !== p);
+    if (FP.dots) [...FP.dots.children].forEach((d, k) => d.classList.toggle('on', FP.pages[k] === p));
+  }
+  function startFreePages() {
+    FP.pages = [...new Set(pagedSlots().map(s => +s.dataset.page))].sort((a, b) => a - b);
+    if (FP.dots) { FP.dots.remove(); FP.dots = null; }
+    if (!FP.pages.length) return;
+    const q = +new URLSearchParams(location.search).get('page') || 0;
+    showFreePage(FP.pages[q % FP.pages.length]);
+    if (FP.pages.length > 1) {
+      FP.dots = document.createElement('div'); FP.dots.className = 'pagedots';
+      FP.pages.forEach(() => FP.dots.appendChild(document.createElement('i')));
+      $('widgets').appendChild(FP.dots);
+      setTimeout(placeDots, 3000);
+      showFreePage(FP.cur);
+    }
+    const visible = p => pagedSlots().some(s => +s.dataset.page === p && !s.classList.contains('off') && !s.classList.contains('empty'));
+    rotTimers.push(setInterval(() => {
+      if (rotationPaused) return;
+      const i = FP.pages.indexOf(FP.cur);
+      for (let k = 1; k <= FP.pages.length; k++) {
+        const n = FP.pages[(i + k) % FP.pages.length];
+        if (visible(n) || k === FP.pages.length) { showFreePage(n); break; }
+      }
+    }, (cfg.pageSeconds || 30) * 1000));
+  }
+  function placeDots() {               // under the area the page groups use, at its left edge
+    if (!FP.dots) return;
+    let l = Infinity, b = 0;
+    for (const s of pagedSlots()) { const r = s.getBoundingClientRect(); if (r.height > 1) { l = Math.min(l, r.left); b = Math.max(b, r.bottom); } }
+    if (l === Infinity) return;
+    Object.assign(FP.dots.style, { left: l + 'px', top: Math.min(innerHeight - 20, b + innerHeight * .012) + 'px' });
+  }
   let layoutTimer = null;
   function layoutChanged() {   // dots for pages that have nothing visible are hidden
     clearTimeout(layoutTimer);
@@ -244,14 +306,16 @@
       if (zoned) {
         slot.classList.add('inzone');
         const Z = zoneEls[w.zone];
-        (Z.paged ? zoneColumn(w.zone, w.page, w.column) : Z.el).appendChild(slot);
+        (Z.paged ? (w.fill ? zoneFill(w.zone, w.page) : zoneColumn(w.zone, w.page, w.column)) : Z.el).appendChild(slot);
+        if (w.fill) slot.classList.add('fill');
         const colW = Math.round(slot.getBoundingClientRect().width) || Math.round(innerWidth * .3);
-        const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, zoned: true, zone: w.zone, scale: (Z.z.scale || 1) * (w.scale || 1), w, idx, auto: { width: false, height: true },
+        const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, zoned: true, zone: w.zone, fill: !!(w.fill && Z.paged), scale: (Z.z.scale || 1) * (w.scale || 1), w, idx, auto: { width: false, height: true },
           init: { settings: w.settings, needs: w.needs, sizing: { width: 'zone', height: 'auto' }, maxWidth: colW } }, slot);
         f.iframe.style.width = '100%'; f.iframe.style.height = '10px';
         return;
       }
       place(slot, w.position); host.appendChild(slot);
+      if (w.page != null) { slot.dataset.page = w.page; slot.classList.add('paged'); }   // rotating page group
       const auto = { width: w.position.width === 'auto', height: w.position.height === 'auto' };
       const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, auto, scale: w.scale || 1, w, idx,
         init: { settings: w.settings, needs: w.needs, sizing: { width: w.position.width, height: w.position.height }, maxWidth: Math.round(innerWidth * .9) } }, slot);
@@ -359,10 +423,12 @@
     renderZones(zones);
     renderWidgets(widgets);
     startRotation();
+    startFreePages();
   }
   window.__orbit = Object.freeze({
     get cfg() { return cfg; }, frames, zoneEls, last,
-    place, cssLen, scaled, styleZone, showPage, renderLayout, send, themeMsg, viewport,
+    place, cssLen, scaled, styleZone, showPage, renderLayout, send, themeMsg, viewport, showFreePage,
+    get freePages() { return FP.pages.slice(); },
     setRotationPaused(on) { rotationPaused = on; },
   });
   window.orbitEdit = (on, insets) => { if (window.OrbitEditor) window.OrbitEditor.toggle(on, insets); };
@@ -380,6 +446,7 @@
     renderZones(cfg.zones);
     renderWidgets(cfg.widgets);
     startRotation();
+    startFreePages();
     nightDim();
     renderProblems();
     startSignals();

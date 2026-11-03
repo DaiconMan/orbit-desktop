@@ -228,10 +228,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Config warnings (e.g. personal / unofficial providers enabled) are listed here instead of on the desktop.
     @objc private func showWarnings() {
-        OrbitAPI.get("/api/config") { obj in
+        OrbitAPI.get("/api/config") { [unowned self] obj in
             let cfg = obj as? [String: Any]
             let warns = (cfg?["warnings"] as? [String]) ?? []
-            let errs = (cfg?["errors"] as? [String]) ?? []
+            let errs = ((cfg?["errors"] as? [String]) ?? []) + self.desktop.pluginErrors.map { "ウィジェットのエラー: " + $0 }
             let a = NSAlert()
             a.messageText = errs.isEmpty && warns.isEmpty ? "設定に警告はありません" : "設定の警告"
             a.informativeText = (errs.map { "⚠︎ " + $0 } + warns.map { "・" + $0 }).joined(separator: "\n\n")
