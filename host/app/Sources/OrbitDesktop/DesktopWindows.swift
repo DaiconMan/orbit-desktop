@@ -138,7 +138,7 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
         for w in windows {
             w.ignoresMouseEvents = !on
             w.level = on ? .floating : NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)))
-            (w.contentView as? WKWebView)?.evaluateJavaScript("window.orbitEdit && window.orbitEdit(\(on))")
+            (w.contentView as? WKWebView)?.evaluateJavaScript("window.orbitEdit && window.orbitEdit(\(on), \(Self.insetsJSON(w.screen)))")
         }
         if on {
             NSApp.activate(ignoringOtherApps: true)
@@ -147,6 +147,13 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
             windows.forEach { $0.orderFront(nil) }
         }
         onEditingChanged?(on)
+    }
+
+    /// Menu bar / Dock areas of the screen, so the editor's toolbar and palette stay clickable.
+    static func insetsJSON(_ screen: NSScreen?) -> String {
+        guard let s = screen else { return "{}" }
+        let f = s.frame, v = s.visibleFrame
+        return "{\"top\":\(Int(f.maxY - v.maxY)),\"bottom\":\(Int(v.minY - f.minY)),\"left\":\(Int(v.minX - f.minX)),\"right\":\(Int(f.maxX - v.maxX))}"
     }
 
     func received(_ message: WKScriptMessage) {
@@ -172,7 +179,10 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if editing { webView.evaluateJavaScript("setTimeout(() => window.orbitEdit && window.orbitEdit(true), 1500)") }
+        if editing {
+            let ins = Self.insetsJSON(webView.window?.screen)
+            webView.evaluateJavaScript("setTimeout(() => window.orbitEdit && window.orbitEdit(true, \(ins)), 1500)")
+        }
     }
 
     // MARK: navigation policy: only our own loopback origin (frames included), nothing else.

@@ -4,11 +4,14 @@
   linear-gradient(90deg, transparent calc(50% - 1px), rgba(120,200,255,.14) calc(50% - 1px), rgba(120,200,255,.14) 50%, transparent 50%);
   background-size: 5vw 5vh, 5vw 5vh, 100% 100%; }
 body.editing #widgets .slot.ed-hidden { opacity: .18 !important; }
-body.editing #widgets .slot.empty { display: block; min-height: 30px; }   /* keep empty widgets grabbable */
+body.editing #widgets .slot.empty, body.editing #widgets .slot.off { display: block; min-height: 30px; }   /* keep empty / hidden widgets grabbable in place */
+body.editing #widgets .slot.off { opacity: .35; }
 body.ed-preview .ed-layer, body.ed-preview .ed-palette { display: none; }
 
 .ed-box { position: fixed; box-sizing: border-box; border-radius: 3px; cursor: grab; }
-.ed-box.zone { border: 1px dashed rgba(255,200,120,.45); }
+.ed-box.zone { border: 1px dashed rgba(255,200,120,.25); pointer-events: none; }
+.ed-box.zone > * { pointer-events: auto; }
+.ed-tag { cursor: grab; }
 .ed-box.widget { border: 1px solid rgba(120,200,255,.28); }
 .ed-box.widget:hover, .ed-box.widget.sel { border-color: rgba(120,200,255,.9); background: rgba(60,140,255,.06); }
 .ed-box.widget.hidden { border-style: dotted; }
@@ -22,7 +25,7 @@ body.ed-preview .ed-layer, body.ed-preview .ed-palette { display: none; }
 .ed-box.widget:hover .ed-wtag, .ed-box.widget.sel .ed-wtag, .ed-box.widget.hidden .ed-wtag { display: flex; }
 .ed-wtag b { font-weight: 600; margin-right: 2px; }
 .ed-h { position: absolute; border-radius: 2px; }
-.ed-h.scale { right: -5px; bottom: -5px; width: 10px; height: 10px; background: rgb(120,200,255); cursor: nwse-resize; }
+.ed-h.scale { right: -7px; bottom: -7px; width: 14px; height: 14px; z-index: 2; background: rgb(120,200,255); cursor: nwse-resize; }
 .ed-box.zone > .ed-h.scale { background: rgb(255,200,120); }
 .ed-h.width { right: -3px; top: 35%; bottom: 35%; width: 5px; background: rgba(255,200,120,.85); cursor: ew-resize; }
 .ed-h.height { bottom: -3px; left: 35%; right: 35%; height: 5px; background: rgba(255,200,120,.85); cursor: ns-resize; }
@@ -31,7 +34,7 @@ body.ed-preview .ed-layer, body.ed-preview .ed-palette { display: none; }
 .ed-ghost.remove { background: rgba(200,50,60,.92); }
 .ed-line { position: fixed; height: 3px; border-radius: 2px; background: rgb(120,200,255); box-shadow: 0 0 10px rgb(120,200,255); pointer-events: none; display: none; }
 
-.ed-bar { position: fixed; z-index: 2003; top: 8px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px;
+.ed-bar { position: fixed; z-index: 2003; bottom: calc(var(--safe-bottom, 0px) + 14px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px;
   background: rgba(14,18,30,.94); border: 1px solid rgba(120,200,255,.35); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.5);
   font: 500 12px var(--mono); color: #fff; white-space: nowrap; }
 .ed-bar b { letter-spacing: .15em; color: rgb(120,200,255); margin-right: 6px; }
@@ -40,7 +43,7 @@ body.ed-preview .ed-layer, body.ed-preview .ed-palette { display: none; }
 .ed-bar button.primary { background: rgb(40,120,220); border-color: rgb(90,160,255); }
 body.ed-preview .ed-bar { opacity: .35; }
 
-.ed-palette { position: fixed; z-index: 2002; left: 10px; top: 60px; bottom: 10px; width: 250px; display: flex; flex-direction: column;
+.ed-palette { position: fixed; z-index: 2002; left: 10px; top: calc(var(--safe-top, 0px) + 60px); bottom: calc(var(--safe-bottom, 0px) + 10px); width: 250px; display: flex; flex-direction: column;
   background: rgba(14,18,30,.94); border: 1px solid rgba(120,200,255,.3); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.5);
   font: 500 12px/1.4 var(--font); color: #fff; user-select: none; -webkit-user-select: none; overflow: hidden; }
 .ed-phead { padding: 10px 12px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
@@ -62,3 +65,4 @@ body.ed-preview .ed-bar { opacity: .35; }
 .ed-palette.drop .ed-ptab, .ed-palette.drop { border-color: rgba(255,90,100,.9); box-shadow: 0 0 20px rgba(255,80,90,.5); }
 .ed-palette.drop .ed-ptab::after { content: ' ← ここで削除'; color: #ff9aa2; }
 .ed-phead button { float: right; padding: 1px 8px; font-size: 11px; }
+.ed-wtag .pct { opacity: .6; }

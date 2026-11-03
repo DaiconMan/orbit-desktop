@@ -37,7 +37,7 @@
     const widgets = (cfg.allWidgets || cfg.widgets).map(w => {
       const o = { use: w.use, settings: clone(w.settings || {}) };
       if (w.dim === false) o.dim = false;
-      if (w.zone) Object.assign(o, { zone: w.zone, page: w.page || 0, column: w.column || 0 });
+      if (w.zone) Object.assign(o, { zone: w.zone, page: w.page || 0, column: w.column || 0, scale: w.scale || 1 });
       else Object.assign(o, { position: clone(w.position), scale: w.scale || 1 });
       return o;
     });
@@ -108,7 +108,8 @@
       }
       tag.appendChild($c('span', 'pct', Math.round((E.arr.zones[name].scale || 1) * 100) + '%'));
       b.appendChild(tag);
-      b.onpointerdown = ev => dragZone(ev, name, 'move');
+      tag.title = 'ここをドラッグでゾーンごと移動';
+      tag.onpointerdown = ev => { if (ev.target === tag || ev.target.tagName === 'B') dragZone(ev, name, 'move'); };
       const hs = [['ed-h scale', 'scale'], ['ed-h width', 'width']];
       if (Z.paged) hs.push(['ed-h height', 'height']);
       for (const [cls, mode] of hs) { const h = $c('div', cls); h.onpointerdown = ev => dragZone(ev, name, mode); b.appendChild(h); }
@@ -132,7 +133,8 @@
       b.appendChild(tag);
       b.dataset.idx = idx; b.dataset.use = w.use;
       b.onpointerdown = ev => dragWidget(ev, { idx });
-      if (!w.zone) { const h = $c('div', 'ed-h scale'); h.onpointerdown = ev => scaleWidget(ev, idx); b.appendChild(h); }
+      const h = $c('div', 'ed-h scale'); h.title = 'ドラッグで大きさ'; h.onpointerdown = ev => scaleWidget(ev, idx); b.appendChild(h);
+      if (Math.abs((w.scale || 1) - 1) > .001) tag.insertBefore($c('span', 'pct', Math.round(w.scale * 100) + '%'), eye);
       L.appendChild(b);
     });
   }
@@ -156,7 +158,10 @@
         let v = vh(Math.max(60, r0.height + dy)) / s0; if (g) v = snap(v, .5); z.height = v.toFixed(1) + 'vh';
       }
       Object.assign(Z.z, z); O().styleZone(Z);
-      if (mode === 'scale') for (const f of O().frames) if (f.zone === name && f.ready) { f.scale = z.scale; O().send(f, { type: 'theme', theme: O().themeMsg(), viewport: O().viewport(), scale: f.scale }); }
+      if (mode === 'scale') for (const f of O().frames) if (f.zone === name && f.ready) {
+        const ww = E.arr.widgets[f.idx]; f.scale = z.scale * ((ww && ww.scale) || 1);
+        O().send(f, { type: 'theme', theme: O().themeMsg(), viewport: O().viewport(), scale: f.scale });
+      }
       drawBoxes();
     };
     const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); E.dirty = true; setTimeout(drawBoxes, 400); };
@@ -170,9 +175,10 @@
     const move = ev => {
       const g = E.grid && !ev.altKey;
       let k = s0 * Math.max(.2, (Math.max(r0.width, 60) + ev.clientX - x0) / Math.max(r0.width, 60));
-      k = Math.min(2.5, Math.max(.5, g ? snap(k, .05) : k)); w.scale = +k.toFixed(3);
-      f.scale = w.scale; if (f.ready) O().send(f, { type: 'theme', theme: O().themeMsg(), viewport: O().viewport(), scale: f.scale });
-      if (w.position.width !== 'auto') f.iframe.style.width = O().scaled(w.position.width, w.scale);
+      k = Math.min(2.5, Math.max(.4, g ? snap(k, .05) : k)); w.scale = +k.toFixed(3);
+      const zk = w.zone && E.arr.zones[w.zone] ? (E.arr.zones[w.zone].scale || 1) : 1;
+      f.scale = zk * w.scale; if (f.ready) O().send(f, { type: 'theme', theme: O().themeMsg(), viewport: O().viewport(), scale: f.scale });
+      if (!w.zone && w.position.width !== 'auto') f.iframe.style.width = O().scaled(w.position.width, w.scale);
       drawBoxes();
     };
     const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); E.dirty = true; setTimeout(drawBoxes, 400); };
@@ -241,7 +247,7 @@
         render(); return;
       }
       // into a zone column, before `before` (or after the column's last widget)
-      delete item.position; delete item.scale;
+      delete item.position;
       Object.assign(item, { zone: tgt.zone, page: tgt.page, column: tgt.column });
       const list = E.arr.widgets;
       let from = src.idx != null ? src.idx : -1;
@@ -297,7 +303,7 @@
       const used = [...new Set(widgets.filter(w => w.zone === name).map(w => w.page || 0))].sort((a, b) => a - b);
       for (const w of widgets) if (w.zone === name) w.page = used.indexOf(w.page || 0);
     }
-    for (const w of widgets) { if (w.zone) { delete w.position; delete w.scale; } else if (w.scale === 1) delete w.scale; }
+    for (const w of widgets) { if (w.zone) delete w.position; if (w.scale === 1) delete w.scale; }
     return { zones: clone(E.arr.zones), widgets };
   }
   function save() {
@@ -320,7 +326,8 @@
   function setPreview(on) { document.body.classList.toggle('ed-preview', on); if (!on) drawBoxes(); }
 
   /* ---------------------------------------------------------------- enter / leave */
-  function toggle(on) {
+  function toggle(on, insets) {
+    if (insets) for (const k of ['top', 'bottom', 'left', 'right']) document.documentElement.style.setProperty('--safe-' + k, (+insets[k] || 0) + 'px');
     if (on === E.active || !O() || !O().cfg) return;
     if (!on) { location.reload(); return; }
     E.active = true;

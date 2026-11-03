@@ -246,7 +246,7 @@
         const Z = zoneEls[w.zone];
         (Z.paged ? zoneColumn(w.zone, w.page, w.column) : Z.el).appendChild(slot);
         const colW = Math.round(slot.getBoundingClientRect().width) || Math.round(innerWidth * .3);
-        const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, zoned: true, zone: w.zone, scale: Z.z.scale || 1, w, idx, auto: { width: false, height: true },
+        const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, zoned: true, zone: w.zone, scale: (Z.z.scale || 1) * (w.scale || 1), w, idx, auto: { width: false, height: true },
           init: { settings: w.settings, needs: w.needs, sizing: { width: 'zone', height: 'auto' }, maxWidth: colW } }, slot);
         f.iframe.style.width = '100%'; f.iframe.style.height = '10px';
         return;
@@ -365,7 +365,7 @@
     place, cssLen, scaled, styleZone, showPage, renderLayout, send, themeMsg, viewport,
     setRotationPaused(on) { rotationPaused = on; },
   });
-  window.orbitEdit = on => { if (window.OrbitEditor) window.OrbitEditor.toggle(on); };
+  window.orbitEdit = (on, insets) => { if (window.OrbitEditor) window.OrbitEditor.toggle(on, insets); };
 
   /* ------------------------------------------------------------ boot */
   async function boot() {
