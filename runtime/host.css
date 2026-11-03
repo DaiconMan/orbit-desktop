@@ -20,6 +20,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; col
 .notice li.e { color: #ffb3bd; }
 .notice .ack { font: inherit; cursor: pointer; padding: 5px 12px; border-radius: 7px; border: 1px solid #c89a3a; background: #7a5a14; color: #fff; }
 .notice small { opacity: .5; font: 11px var(--mono); }
+.notice .lead { margin: 0; max-width: 100%; padding: 10px 14px; border-radius: 10px; background: rgba(16,18,26,.95); border: 1px solid rgba(255,255,255,.14); color: #c9cdd8; }
+.notice ul { line-height: 1.6; }
+.notice li + li { margin-top: 4px; }
 .slot.clickable { pointer-events: auto; cursor: pointer; }
 .slot iframe.interactive { pointer-events: auto; }
 /* zones: vertical flow, no overlaps; paged zones crossfade between pages of columns */

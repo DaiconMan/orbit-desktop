@@ -61,6 +61,7 @@
     const errs = (cfg ? cfg.errors : []).concat(runtimeErrors);
     const ack = new Set([...(cfg && cfg.ackWarnings) || [], ...ackLocal]);
     const warns = (cfg ? cfg.warnings : []).concat(pluginErrors).filter(w => !ack.has(w));
+    const isJa = ((theme && theme.locale) || navigator.language || '').toLowerCase().startsWith('ja');
     el.textContent = '';
     if (!errs.length && !warns.length) { el.hidden = true; clickZonesChanged(); return; }
     el.hidden = false;
@@ -73,7 +74,12 @@
     if (noticeOpen) {
       const ul = document.createElement('ul');
       for (const e of errs.slice(0, 10)) { const li = document.createElement('li'); li.className = 'e'; li.textContent = e; ul.appendChild(li); }
-      for (const w of warns.slice(0, 10)) { const li = document.createElement('li'); li.textContent = w; ul.appendChild(li); }
+      if (warns.length && isJa) { const p = document.createElement('p'); p.className = 'lead'; p.textContent = '次の設定が有効になっています。分かったうえで使っているなら「確認済みにする」を押してください。次に内容が変わるまで表示されません。'; el.appendChild(p); }
+      const seen = new Set();
+      for (const w of warns.slice(0, 12)) {
+        const t = isJa ? explain(w) : w; if (seen.has(t)) continue; seen.add(t);
+        const li = document.createElement('li'); li.textContent = t; ul.appendChild(li);
+      }
       el.appendChild(ul);
       if (warns.length) {
         const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'ack'; ok.textContent = '確認済みにする';
@@ -83,6 +89,19 @@
       if (errs.length && cfg) { const s = document.createElement('small'); s.textContent = cfg.configPath; el.appendChild(s); }
     }
     clickZonesChanged();
+  }
+
+  // config warnings in plain Japanese: what is going on, and whether to do anything
+  function explain(w) {
+    const name = id => { const c = (cfg.catalog || []).find(x => x.id === id); return (c && c.i18n && c.i18n.ja && c.i18n.ja.name) || id; };
+    let m;
+    if (/claude_usage is enabled/.test(w)) return 'Claude 残量：Claude Code が自分用に保存している使用量を読み取っています（公開された方法ではないので、Claude Code の更新で表示されなくなることがあります）。';
+    if (/providers github, contrib, rfc/.test(w) || /gh login/.test(w)) return 'GitHub：あなたの gh のログインで GitHub のデータ（レビュー依頼・CI・RFC・活動量）を取得して、壁紙に表示しています。';
+    if (/sessions is enabled/.test(w)) return 'Claude Code のセッション：いま動いているセッションのフォルダ名を壁紙に表示しています。';
+    if (/location\.mode is 'ip'/.test(w)) return '現在地：インターネットの IP アドレスから位置を推定しています（外部サービスに IP が送られます）。';
+    if ((m = w.match(/\((\S+)\) is an UNOFFICIAL plugin/))) return `「${name(m[1])}」：公開されていない方法でデータを読むウィジェットです。`;
+    if ((m = w.match(/^(\S+?): (.*)$/)) && frames.some(f => f.id === m[1])) return `「${name(m[1])}」の表示でエラー：${m[2]}`;
+    return w;
   }
 
   /* click zones: the wallpaper ignores the mouse except over these rects (the host app polls the pointer).

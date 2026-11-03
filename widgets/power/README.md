@@ -14,6 +14,9 @@ controller (`ioreg -c AppleSmartBattery`); no extra permission is needed.
   * the input power is above the adapter's rating
   * the charger is not USB PD
 
+The battery controller refreshes these values only every minute or so (less often when the battery is
+full); the header says how old the measurement is (「n分前の測定」).
+
 needs: `power` (enable `providers.power`). Settings: `show_offers`, `show_battery`.
 
 **Limits:** this is monitoring, not protection. A surge that damages hardware happens in microseconds to

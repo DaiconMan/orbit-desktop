@@ -518,7 +518,7 @@ class ExtraLoops:
         """USB-C input every interval_seconds: what was negotiated, what flows, and warning signs (counters that
         moved since the server started, input voltage off the contract, power above the adapter's rating)."""
         c = self.cfg["power"]
-        base, hist = None, []
+        base, hist, last_vals, changed_at = None, [], None, time.time()
         while True:
             p = self._read_power()
             if p:
@@ -541,8 +541,13 @@ class ExtraLoops:
                     alerts.append({"level": "warn", "text": f"入力 {inp['watts']:.1f}W が定格 {ad['watts']}W を超えています"})
                 if p["connected"] and ad and ad.get("description") and "pd" not in ad["description"].lower():
                     alerts.append({"level": "info", "text": f"USB PD ではない充電（{ad['description']}）"})
-                hist = (hist + [round(inp["watts"], 2) if inp else 0])[-120:]
-                p.update(alerts=alerts, history=hist, at=time.time())
+                # the battery controller refreshes its telemetry only every minute or so (rarely when full):
+                # record a sample only when the values change, and say how old they are
+                vals = (inp or {}).get("watts"), (inp or {}).get("volts"), (inp or {}).get("amps")
+                if vals != last_vals:
+                    last_vals, changed_at = vals, time.time()
+                    hist = (hist + [round(inp["watts"], 2) if inp else 0])[-120:]
+                p.update(alerts=alerts, history=hist, at=time.time(), measured_at=changed_at)
                 self.set_extra("power", p)
             time.sleep(c["interval_seconds"])
 

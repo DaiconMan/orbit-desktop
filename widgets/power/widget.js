@@ -14,7 +14,9 @@
         const s = ctx.settings, ad = p.adapter, inp = p.input, c = `rgb(${ctx.rgb('c')})`;
         const alerts = p.alerts || [], bad = alerts.some(a => a.level === 'danger'), warn = alerts.some(a => a.level === 'warn');
         m.el.classList.toggle('bad', bad); m.el.classList.toggle('warnish', !bad && warn);
-        m.meta.innerHTML = !p.connected ? 'バッテリー駆動' : bad ? '<span class="warn">要確認</span>' : p.charging ? '<span class="ok">●</span> 充電中' : p.full ? '充電済み' : '接続';
+        const age = p.measured_at ? Math.round((Date.now() / 1000 - p.measured_at) / 60) : 0;   // the controller updates every minute or so
+        m.meta.innerHTML = (!p.connected ? 'バッテリー駆動' : bad ? '<span class="warn">要確認</span>' : p.charging ? '<span class="ok">●</span> 充電中' : p.full ? '充電済み' : '接続')
+          + (age >= 1 ? ` · ${age}分前の測定` : '');
         if (!p.connected || !ad) {
           m.body.innerHTML = kv('BATTERY', `${p.percent != null ? p.percent + '%' : '—'}<small>${f1(p.battery && p.battery.watts)}W 放電</small>`);
           return;

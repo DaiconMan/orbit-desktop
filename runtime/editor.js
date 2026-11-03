@@ -210,20 +210,44 @@
     const move = ev => {
       const g = E.grid && !ev.altKey, dx = ev.clientX - x0, dy = ev.clientY - y0;
       if (mode === 'scale') setScale(idx, s0 * Math.max(.2, (W0 + dx) / W0), g);
+      const sz = snapSize(idx, r0, W0 + dx, H0 + dy, mode);
       if (mode === 'width' || mode === 'box') {
-        let v = vw(Math.min(wMax, Math.max(wMin, W0 + dx))) / s0; if (g) v = snap(v, .5);
+        let v = vw(Math.min(wMax, Math.max(wMin, sz.w))) / s0; if (g && !sz.snappedW) v = snap(v, .5);
         w.position.width = v.toFixed(1) + 'vw'; f.iframe.style.width = O().scaled(w.position.width, s0);
       }
       if (mode === 'height' || mode === 'box') {
-        let v = vh(Math.max(30, H0 + dy)) / s0; if (g) v = snap(v, .5);
+        let v = vh(Math.max(30, sz.h)) / s0; if (g && !sz.snappedH) v = snap(v, .5);
         w.position.height = v.toFixed(1) + 'vh'; f.auto = Object.assign({}, f.auto, { height: false });
         f.iframe.style.height = O().scaled(w.position.height, s0);
       }
       const r = f.slot.getBoundingClientRect(); placeLive(w, f, R(r0.left, r0.top, r.width, r.height));
       drawBoxes();
     };
-    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); setTimeout(() => { drawBoxes(); drawInspector(); }, 400); };
+    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); hideGuides(); setTimeout(() => { drawBoxes(); drawInspector(); }, 400); };
     addEventListener('pointermove', move); addEventListener('pointerup', up);
+  }
+  // sizes snap to the other visible widgets: the same width / height, or the right / bottom edge lining up
+  // with another widget's edge or the screen centre (guide lines show which)
+  function snapSize(idx, r0, w, h, mode) {
+    const ws = [], hs = [], xs = [innerWidth / 2], ys = [innerHeight / 2];
+    E.arr.forEach((o, i) => {
+      if (i === idx || !onPage(o) || o.dim === false) return;
+      const f = frameOf(i); if (!f) return; const q = f.slot.getBoundingClientRect(); if (q.height < 2) return;
+      ws.push(q.width); hs.push(q.height); xs.push(q.left, q.right); ys.push(q.top, q.bottom);
+    });
+    const best = (val, cands) => { let d = null; for (const c of cands) if (Math.abs(c - val) < SNAP_PX && (d === null || Math.abs(c - val) < Math.abs(d - val))) d = c; return d; };
+    const out = { w, h, snappedW: false, snappedH: false };
+    if (mode === 'width' || mode === 'box') {
+      const same = best(w, ws), edge = best(r0.left + w, xs);
+      if (same !== null) { out.w = same; out.snappedW = true; } else if (edge !== null) { out.w = edge - r0.left; out.snappedW = true; }
+      E.guideX.style.display = out.snappedW ? 'block' : 'none'; if (out.snappedW) E.guideX.style.left = (r0.left + out.w) + 'px';
+    }
+    if (mode === 'height' || mode === 'box') {
+      const same = best(h, hs), edge = best(r0.top + h, ys);
+      if (same !== null) { out.h = same; out.snappedH = true; } else if (edge !== null) { out.h = edge - r0.top; out.snappedH = true; }
+      E.guideY.style.display = out.snappedH ? 'block' : 'none'; if (out.snappedH) E.guideY.style.top = (r0.top + out.h) + 'px';
+    }
+    return out;
   }
   function natural(w, f, r) {         // the widget's natural width in px at scale 1
     const c = cat(w.use), ds = (c.defaultSize || {}).width;
