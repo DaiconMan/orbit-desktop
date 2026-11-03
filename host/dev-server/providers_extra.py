@@ -192,9 +192,22 @@ class ExtraLoops:
                 home = bool(home) or any(self._ssid(i) == c["home_ssid"] for i in ifs)
             mounted = self.sh(["/sbin/mount"]).splitlines()
             mounts = {n: any(f"/{n} on " in ln and "smbfs" in ln for ln in mounted) for n in c["mounts"]}
+            # remember each share's URL while it is mounted, so the host app can mount it again on a click
+            urls = _load_json(os.path.join(CACHE_DIR, "mounts.json")) or {}
+            changed = False
+            for ln in mounted:
+                mm = re.match(r"^//(\S+?)/(\S+) on /Volumes/(\S+) \(smbfs", ln)
+                if mm and mm.group(3) in c["mounts"]:
+                    u = f"smb://{mm.group(1)}/{mm.group(2)}"
+                    if urls.get(mm.group(3)) != u:
+                        urls[mm.group(3)] = u
+                        changed = True
+            if changed:
+                _save_json(os.path.join(CACHE_DIR, "mounts.json"), urls)
             with self.lock:
                 self.extra["network"] = {"home": {"home": home, "ip": ip}, "tailscale": {"up": bool(ts), "ip": ts},
-                                         "mounts": mounts, "ping": dict(self.system.get("ping") or {}),
+                                         "mounts": mounts, "mountable": {n: n in urls for n in c["mounts"]},
+                                         "ping": dict(self.system.get("ping") or {}),
                                          "speed": self.system.get("speed")}
             time.sleep(c["interval_seconds"])
 

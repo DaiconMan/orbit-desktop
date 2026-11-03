@@ -81,7 +81,7 @@ GENERIC_SIGNALS = {
 }
 
 # actions a widget's own buttons may ask the host app to run (manifest `actions:`)
-WIDGET_ACTIONS = {"music"}
+WIDGET_ACTIONS = {"music", "mount"}
 # click actions a user can attach to any widget in the layout editor (run by the host app)
 CLICK_ACTIONS = {"url", "app", "shortcut", "script", "music"}
 # library categories (layout editor), in display order
@@ -763,13 +763,19 @@ def validate_layout(cfg, plugins: dict) -> dict:
     if not isinstance(cfg, dict):
         return {"errors": ["layout.yaml: top level must be a mapping"], "warnings": [], "widgets": [], "zones": {},
                 "theme": dict(DEFAULT_THEME), "background": None, "providers": copy.deepcopy(DEFAULT_PROVIDERS)}
-    for k in sorted(set(cfg) - {"version", "theme", "background", "widgets", "providers", "zones"}):
-        errors.append(f"{k}: unknown top-level key (version, theme, background, widgets, providers, zones)")
+    for k in sorted(set(cfg) - {"version", "theme", "background", "widgets", "providers", "zones", "stacks"}):
+        errors.append(f"{k}: unknown top-level key (version, theme, background, widgets, providers, zones, stacks)")
     if cfg.get("version", 1) != 1:
         errors.append("version: only version 1 is supported")
     theme = _validate_theme(cfg.get("theme"), errors)
     providers = _validate_providers(cfg.get("providers"), errors, warnings)
     zones = _validate_zones(cfg.get("zones"), errors)
+    # stacks: widgets that share one place and take turns (like a smart stack); {id: {seconds}}
+    stacks = {}
+    for sid, sv in (cfg.get("stacks") or {}).items() if isinstance(cfg.get("stacks"), dict) else []:
+        if isinstance(sid, str) and re.match(r"^[A-Za-z0-9_-]{1,40}$", sid) and isinstance(sv, dict):
+            sec = sv.get("seconds", 30)
+            stacks[sid] = {"seconds": sec if isinstance(sec, int) and not isinstance(sec, bool) and 5 <= sec <= 3600 else 30}
 
     # background
     bg_in = cfg.get("background")
@@ -827,8 +833,8 @@ def validate_layout(cfg, plugins: dict) -> dict:
         if not isinstance(w, dict):
             errors.append(f"{where}: must be a mapping with 'use'")
             continue
-        for k in sorted(set(w) - {"use", "position", "settings", "id", "zone", "page", "column", "dim", "scale", "fill", "action"}):
-            errors.append(f"{where}.{k}: unknown key (use, position, settings, id, zone, page, column, dim, scale, fill, action)")
+        for k in sorted(set(w) - {"use", "position", "settings", "id", "zone", "page", "column", "dim", "scale", "fill", "action", "stack"}):
+            errors.append(f"{where}.{k}: unknown key (use, position, settings, id, zone, page, column, dim, scale, fill, action, stack)")
         use = w.get("use")
         m = plugins.get(use)
         if not m:
@@ -872,14 +878,15 @@ def validate_layout(cfg, plugins: dict) -> dict:
                         "zone": zone if zone in zones else None, "page": page if zone else (page if isinstance(page, int) and not isinstance(page, bool) else None),
                         "column": column if zone else 0, "dim": w.get("dim", True) is not False, "scale": scale,
                         "fill": bool(zone and w.get("fill") is True), "action": action,
-                        "actions": list(m.get("actions") or [])})
+                        "actions": list(m.get("actions") or []),
+                        "stack": w.get("stack") if isinstance(w.get("stack"), str) and not zone and re.match(r"^[A-Za-z0-9_-]{1,40}$", w["stack"]) else None})
     if background:
         for s in background["needs"]:
             prov = SIGNAL_PROVIDER.get(s)
             if prov and not providers[prov]["enabled"]:
                 warnings.append(f"background ({background['use']}) needs '{s}' but providers.{prov}.enabled is false")
     return {"theme": theme, "background": background, "widgets": widgets, "providers": providers,
-            "zones": zones, "errors": errors, "warnings": warnings}
+            "zones": zones, "stacks": stacks, "errors": errors, "warnings": warnings}
 
 
 def load_layout(path: str, plugins: dict, overlay: dict | None = None) -> dict:

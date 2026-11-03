@@ -14,7 +14,7 @@
 (() => {
   'use strict';
   const O = () => window.__orbit;
-  const E = { active: false, arr: null, sel: null, page: null, extraPages: new Set(), providers: {}, theme: {}, pageSeconds: null,
+  const E = { active: false, arr: null, sel: null, page: null, extraPages: new Set(), providers: {}, theme: {}, pageSeconds: null, stacks: {}, stackCur: {},
     undo: [], redo: [], cat: 'all', query: '', grid: true };
   const $c = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const vw = px => px / innerWidth * 100, vh = px => px / innerHeight * 100;
@@ -54,13 +54,13 @@
 
   /* ---------------------------------------------------------------- model + undo */
   const frameOf = idx => O().frames.find(f => f.kind === 'widget' && f.idx === idx && !f.dead);
-  const state = () => JSON.stringify({ arr: E.arr, providers: E.providers, theme: E.theme, pageSeconds: E.pageSeconds });
+  const state = () => JSON.stringify({ arr: E.arr, providers: E.providers, theme: E.theme, pageSeconds: E.pageSeconds, stacks: E.stacks });
   function remember() { E.undo.push(state()); if (E.undo.length > 100) E.undo.shift(); E.redo = []; drawBar(); saveDraftSoon(); }
   // unsaved work survives a crash / restart: the host app keeps a draft, offered again on the next edit
   let draftTimer = null;
   const saveDraftSoon = () => { clearTimeout(draftTimer); draftTimer = setTimeout(() => toHost({ type: 'saveDraft', draft: { state: JSON.parse(state()), at: Date.now() } }), 1500); };
   const dropDraft = () => { clearTimeout(draftTimer); toHost({ type: 'saveDraft', draft: null }); };
-  function restore(s) { const o = JSON.parse(s); E.arr = o.arr; E.providers = o.providers; E.theme = o.theme; E.pageSeconds = o.pageSeconds; E.sel = null; render(); }
+  function restore(s) { const o = JSON.parse(s); E.arr = o.arr; E.providers = o.providers; E.theme = o.theme; E.pageSeconds = o.pageSeconds; E.stacks = o.stacks || {}; E.sel = null; render(); }
   function undo() { if (!E.undo.length) return; E.redo.push(state()); restore(E.undo.pop()); }
   function redo() { if (!E.redo.length) return; E.undo.push(state()); restore(E.redo.pop()); }
 
@@ -70,6 +70,7 @@
       const o = { use: w.use, settings: clone(w.settings || {}), scale: w.scale || 1 };
       if (w.dim === false) o.dim = false;
       if (w.action) o.action = clone(w.action);
+      if (w.stack) o.stack = w.stack;
       if (w.zone) Object.assign(o, { zone: w.zone, zpage: w.page || 0 });
       else { o.position = clone(w.position); if (w.page != null) o.page = w.page; }
       return o;
@@ -96,17 +97,51 @@
     return E.arr.map(w => {
       const c = cat(w.use);
       return { use: w.use, name: c.name, needs: c.needs, assets: c.assets, settings: w.settings || clone(c.settings), actions: c.actions || [],
-        zone: null, page: w.page != null ? w.page : null, dim: w.dim !== false, scale: w.scale || 1, action: null,
+        zone: null, page: w.page != null ? w.page : null, stack: w.stack || null, dim: w.dim !== false, scale: w.scale || 1, action: null,
         position: w.position || { anchor: 'center', x: 0, y: 0, width: 'auto', height: 'auto', z: 0 } };
     });
   }
   const pagesInUse = () => [...new Set(E.arr.filter(w => w.page != null).map(w => w.page).concat([...E.extraPages]))].sort((a, b) => a - b);
   const onPage = w => w.page == null || w.page === E.page;
+  /* stacks (smart-stack style): widgets with the same `stack` share one place and take turns */
+  const stackIds = () => [...new Set(E.arr.filter(w => w.stack).map(w => w.stack))];
+  const members = id => E.arr.map((w, i) => [w, i]).filter(([w]) => w.stack === id).map(([, i]) => i);
+  const isShown = idx => { const w = E.arr[idx]; if (!w.stack) return true; const m = members(w.stack); return m[(E.stackCur[w.stack] || 0) % m.length] === idx; };
+  function flipStack(id, d) { const n = members(id).length; E.stackCur[id] = (((E.stackCur[id] || 0) + d) % n + n) % n; O().showStackMember(id, E.stackCur[id]); E.sel = members(id)[E.stackCur[id]]; drawAll(); }
+  function syncStack(idx) {           // every member of a stack sits where the moved one sits
+    const w = E.arr[idx]; if (!w.stack) return;
+    for (const j of members(w.stack)) if (j !== idx) {
+      const o = E.arr[j]; Object.assign(o.position, { anchor: w.position.anchor, x: w.position.x, y: w.position.y });
+      const f = frameOf(j); if (f) { const st = f.slot.style; for (const p of ['left', 'right', 'top', 'bottom', 'transform']) st[p] = ''; O().place(f.slot, o.position); }
+    }
+  }
+  function joinStack(idx, target) {
+    remember();
+    const w = E.arr[idx], t = E.arr[target];
+    const id = t.stack || w.stack || 's' + Date.now().toString(36);
+    if (w.stack && w.stack !== id) leaveStack(idx, true);
+    t.stack = id; w.stack = id; delete w.page; delete t.page;
+    Object.assign(w.position, { anchor: t.position.anchor, x: t.position.x, y: t.position.y });
+    if (!E.stacks[id]) E.stacks[id] = { seconds: 30 };
+    E.stackCur[id] = members(id).indexOf(idx); E.sel = idx; render();
+  }
+  function leaveStack(idx, quiet) {
+    if (!quiet) remember();
+    const w = E.arr[idx], id = w.stack; if (!id) return;
+    delete w.stack;
+    const rest = members(id);
+    if (rest.length === 1) { delete E.arr[rest[0]].stack; delete E.stacks[id]; }
+    const f = frameOf(idx);                                  // step it aside so it is visible on its own
+    if (f) { const r = f.slot.getBoundingClientRect(); const nr = R(r.left + 24, Math.min(innerHeight - r.height - 10, r.bottom + 16), r.width, r.height); w.position.anchor = anchorFor(nr); Object.assign(w.position, offsetsFor(w.position.anchor, nr)); }
+    E.stackCur[id] = 0;
+    if (!quiet) render();
+  }
   let renderTimer = null;
   function render() {
     clearTimeout(renderTimer);
     O().renderLayout({}, resolved());
     O().showFreePage(E.page);
+    for (const id of stackIds()) O().showStackMember(id, E.stackCur[id] || 0);
     drawAll();
   }
   const renderSoon = () => { clearTimeout(renderTimer); renderTimer = setTimeout(render, 450); };
@@ -118,13 +153,23 @@
     L.querySelectorAll('.ed-box').forEach(b => b.remove());
     const drawn = [];
     E.arr.forEach((w, idx) => {
-      const f = frameOf(idx); if (!f || w.dim === false || !onPage(w)) return;   // dim:false = overlays (alerts)
+      const f = frameOf(idx); if (!f || w.dim === false || !onPage(w) || !isShown(idx)) return;   // dim:false = overlays (alerts)
       const r = rectOf(f.slot);
       const b = $c('div', 'ed-box' + (E.sel === idx ? ' sel' : '') + (w.page != null ? ' paged' : '') + (r.empty ? ' empty' : ''));
       Object.assign(b.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
       b.dataset.idx = idx;
       const tag = $c('div', 'ed-wtag', nameOf(w.use) + (r.empty ? '（いまは表示なし）' : '') + (Math.abs((w.scale || 1) - 1) > .001 ? `　${Math.round(w.scale * 100)}%` : ''));
       b.appendChild(tag);
+      if (w.stack) {
+        const m = members(w.stack), nav = $c('div', 'ed-stack');
+        const prev = $c('button', null, '‹'), next = $c('button', null, '›');
+        prev.setAttribute('aria-label', '前のウィジェット'); next.setAttribute('aria-label', '次のウィジェット');
+        prev.onpointerdown = ev => { ev.stopPropagation(); flipStack(w.stack, -1); };
+        next.onpointerdown = ev => { ev.stopPropagation(); flipStack(w.stack, 1); };
+        nav.append(prev, $c('span', null, `重ね ${m.indexOf(idx) + 1} / ${m.length}`), next);
+        b.appendChild(nav);
+        b.classList.add('stacked');
+      }
       b.onpointerdown = ev => dragWidget(ev, { idx });
       if (E.sel === idx) {
         const hs = $c('div', 'ed-h scale'); hs.title = '枠の大きさ（⇧ を押しながらで中身ごと拡大縮小）'; hs.onpointerdown = ev => resize(ev, idx, ev.shiftKey ? 'scale' : 'box');
@@ -146,7 +191,7 @@
   function snapRect(r, ignoreIdx, useGrid) {
     const xs = [innerWidth / 2], ys = [innerHeight / 2];
     E.arr.forEach((w, i) => {
-      if (i === ignoreIdx || !onPage(w) || w.dim === false) return;
+      if (i === ignoreIdx || !onPage(w) || w.dim === false || !isShown(i) || (w.stack && w.stack === (E.arr[ignoreIdx] || {}).stack)) return;
       const f = frameOf(i); if (!f) return; const q = f.slot.getBoundingClientRect(); if (q.height < 2) return;
       xs.push(q.left, q.right, q.left + q.width / 2); ys.push(q.top, q.bottom, q.top + q.height / 2);
     });
@@ -182,14 +227,14 @@
       onLib = inRect(E.lib, ev);
       E.lib.classList.toggle('drop', onLib && !!w);
       if (ghost) Object.assign(ghost.style, { left: ev.clientX + 12 + 'px', top: ev.clientY + 12 + 'px' });
-      if (w && f) placeLive(w, f, snapRect(R(r0.left + ev.clientX - x0, r0.top + ev.clientY - y0, r0.width, r0.height), src.idx, E.grid && !ev.altKey));
+      if (w && f) { placeLive(w, f, snapRect(R(r0.left + ev.clientX - x0, r0.top + ev.clientY - y0, r0.width, r0.height), src.idx, E.grid && !ev.altKey)); syncStack(src.idx); }
       drawBoxes();
     };
     const up = ev => {
       removeEventListener('pointermove', move); removeEventListener('pointerup', up);
       hideGuides(); if (ghost) ghost.remove(); E.lib.classList.remove('drop'); document.body.classList.remove('ed-dragging');
       if (!moved) { if (src.idx != null) select(src.idx); return; }
-      if (w && onLib) { E.arr.splice(src.idx, 1); E.sel = null; render(); return; }
+      if (w && onLib) { if (w.stack) leaveStack(src.idx, true); E.arr.splice(src.idx, 1); E.sel = null; render(); return; }
       if (src.add && !onLib && !inRect(E.insp, ev)) addAt(src.add, ev.clientX, ev.clientY);
       else drawAll();
     };
@@ -374,7 +419,7 @@
     if (!ps.length) pg.appendChild(new Option('ページ 1（新しく作る）', '0'));
     pg.value = w.page == null ? '' : String(w.page);
     pg.onchange = () => { remember(); if (pg.value === '') delete w.page; else { w.page = +pg.value; E.page = w.page; } render(); };
-    s1.appendChild(row('表示するページ', pg));
+    if (pagesInUse().length || w.page != null) s1.appendChild(row('表示するページ（旧方式）', pg));
     const sz = $c('input'); sz.type = 'range'; sz.min = 40; sz.max = 300; sz.step = 5; sz.value = Math.round((w.scale || 1) * 100);
     const szv = $c('span', 'v', sz.value + '%');
     sz.onpointerdown = () => remember();
@@ -387,6 +432,30 @@
     autoH.onchange = () => { remember(); if (autoH.checked) w.position.height = 'auto'; else { const f = frameOf(E.sel); w.position.height = (f ? vh(f.slot.getBoundingClientRect().height / (w.scale || 1)) : 20).toFixed(1) + 'vh'; } render(); };
     s1.appendChild(row('高さを中身に合わせる', autoH, '枠の大きさは、選んだ枠の右下・右端・下端をドラッグ'));
     P.appendChild(s1);
+
+    const st = section('重ねて切り替え');
+    if (!w.stack) {
+      const sel = $c('select'); sel.appendChild(new Option('重ねない', ''));
+      E.arr.forEach((o, i) => { if (i !== E.sel && o.dim !== false && !o.zone) sel.appendChild(new Option(nameOf(o.use) + (o.stack ? '（重ね）' : ''), String(i))); });
+      sel.onchange = () => { if (sel.value !== '') joinStack(E.sel, +sel.value); };
+      st.appendChild(row('ほかのウィジェットに重ねる', sel, '同じ場所で順番に切り替わります（iPhone のスマートスタックのように）'));
+    } else {
+      const m = members(w.stack);
+      st.appendChild($c('p', 'ed-note', '重なっているウィジェット：' + m.map(i => nameOf(E.arr[i].use)).join(' → ')));
+      const sec = (E.stacks[w.stack] || {}).seconds || 30;
+      const r = $c('input'); r.type = 'range'; r.min = 5; r.max = 120; r.step = 5; r.value = sec;
+      const rv = $c('span', 'v', sec + '秒');
+      r.onpointerdown = () => remember();
+      r.oninput = () => { (E.stacks[w.stack] = E.stacks[w.stack] || {}).seconds = +r.value; rv.textContent = r.value + '秒'; };
+      const rr = row('切り替えの間隔', r); rr.appendChild(rv); st.appendChild(rr);
+      const add = $c('select'); add.appendChild(new Option('ほかのウィジェットを足す…', ''));
+      E.arr.forEach((o, i) => { if (o.stack !== w.stack && o.dim !== false) add.appendChild(new Option(nameOf(o.use), String(i))); });
+      add.onchange = () => { if (add.value !== '') joinStack(+add.value, E.sel); };
+      st.appendChild(row('重ねる', add));
+      const out = $c('button', null, 'このウィジェットを重ねから外す'); out.onclick = () => leaveStack(E.sel);
+      st.appendChild(out);
+    }
+    P.appendChild(st);
 
     const keys = Object.keys(c.schema || {});
     if (keys.length) {
@@ -409,7 +478,7 @@
     else actionControls(w, s4);
     P.appendChild(s4);
     const rm = $c('button', 'danger', '壁紙から外す');
-    rm.onclick = () => { remember(); E.arr.splice(E.sel, 1); E.sel = null; render(); };
+    rm.onclick = () => { remember(); if (w.stack) leaveStack(E.sel, true); E.arr.splice(E.sel, 1); E.sel = null; render(); };
     P.appendChild(rm);
   }
   function drawGlobal(P) {
@@ -446,6 +515,9 @@
   function drawBar() {
     const t = E.tabs; if (!t) return;
     t.textContent = '';
+    const legacy = pagesInUse().length > 0;
+    t.parentElement.classList.toggle('nopages', !legacy);
+    if (!legacy) return;
     const tab = (label, p, title) => { const b = $c('button', E.page === p ? 'on' : '', label); b.title = title; b.onclick = () => { E.page = p; E.sel = null; O().showFreePage(p); drawAll(); }; t.appendChild(b); };
     tab('常に表示', null, 'いつも表示するウィジェット');
     for (const p of pagesInUse()) tab(String(p + 1), p, `ページ ${p + 1}：${E.pageSeconds || O().cfg.pageSeconds || 30} 秒ごとに順番に表示`);
@@ -467,7 +539,9 @@
   function serialize() {
     const used = pagesInUse().filter(p => E.arr.some(w => w.page === p));
     const widgets = clone(E.arr).map(w => { if (w.page != null) w.page = used.indexOf(w.page); if (w.scale === 1) delete w.scale; return w; });
-    return { zones: {}, widgets };
+    const usedStacks = new Set(widgets.filter(w => w.stack).map(w => w.stack));
+    const stacks = Object.fromEntries(Object.entries(E.stacks).filter(([k]) => usedStacks.has(k)));
+    return { zones: {}, widgets, stacks };
   }
   function save() {
     const msg = { type: 'saveArrangement', arrangement: serialize(), hidden: [], providers: Object.fromEntries(Object.entries(E.providers).map(([k, v]) => [k, { enabled: v }])) };
@@ -502,7 +576,7 @@
     E.active = true;
     O().setRotationPaused(true);
     document.body.classList.add('editing');
-    Object.assign(E, { sel: null, extraPages: new Set(), providers: {}, theme: {}, pageSeconds: null, undo: [], redo: [] });
+    Object.assign(E, { sel: null, extraPages: new Set(), providers: {}, theme: {}, pageSeconds: null, undo: [], redo: [], stacks: clone(O().cfg.stacks || {}), stackCur: {} });
     E.arr = fromConfig();
     convertZones(E.arr);
     E.page = (() => { const ps = pagesInUse(); return ps.length ? ps[0] : null; })();

@@ -114,7 +114,7 @@
       if (window.OrbitEditor && window.OrbitEditor.active) return;
       const rects = [];
       const add = el => { const r = el.getBoundingClientRect(); if (r.width > 1 && r.height > 1 && getComputedStyle(el).visibility !== 'hidden') rects.push({ x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }); };
-      for (const f of frames) if (f.kind === 'widget' && !f.dead && f.w && (f.w.action || (f.w.actions || []).length) && !f.slot.classList.contains('pg-off')) add(f.slot);
+      for (const f of frames) if (f.kind === 'widget' && !f.dead && f.w && (f.w.action || (f.w.actions || []).length) && !f.slot.classList.contains('pg-off') && !f.slot.classList.contains('st-off')) add(f.slot);
       const n = $('problems'); if (n && !n.hidden) add(n);
       const key = JSON.stringify(rects);
       if (key !== zonesKey) { zonesKey = key; toHost({ type: 'clickZones', zones: rects }); }
@@ -342,6 +342,48 @@
     if (l === Infinity) return;
     Object.assign(FP.dots.style, { left: l + 'px', top: Math.min(innerHeight - 20, b + innerHeight * .012) + 'px' });
   }
+  /* stacks: widgets that share one place and take turns, each stack on its own (like a smart stack).
+     Members are shown one at a time; empty / hidden members are skipped; a few dots under it show where it is. */
+  const ST = {};
+  function stackSlots(id) { return [...document.querySelectorAll('#widgets > .slot.stacked')].filter(s => s.dataset.stack === id); }
+  function showStackMember(id, i) {
+    const S = ST[id]; if (!S) return;
+    const m = stackSlots(id); if (!m.length) return;
+    S.cur = ((i % m.length) + m.length) % m.length;
+    m.forEach((s, k) => s.classList.toggle('st-off', k !== S.cur));
+    if (S.dots) { [...S.dots.children].forEach((d, k) => d.classList.toggle('on', k === S.cur)); placeStackDots(id); }
+    clickZonesChanged();
+  }
+  function placeStackDots(id) {
+    const S = ST[id]; if (!S || !S.dots) return;
+    const s = stackSlots(id)[S.cur]; if (!s) return;
+    const r = s.getBoundingClientRect();
+    Object.assign(S.dots.style, { left: r.left + 'px', top: Math.min(innerHeight - 12, r.bottom + innerHeight * .008) + 'px' });
+  }
+  function startStacks() {
+    for (const k of Object.keys(ST)) { if (ST[k].dots) ST[k].dots.remove(); delete ST[k]; }
+    const ids = [...new Set([...document.querySelectorAll('#widgets > .slot.stacked')].map(s => s.dataset.stack))];
+    for (const id of ids) {
+      const S = ST[id] = { cur: 0, dots: null };
+      const n = stackSlots(id).length;
+      if (n > 1) {
+        S.dots = document.createElement('div'); S.dots.className = 'pagedots';
+        for (let k = 0; k < n; k++) S.dots.appendChild(document.createElement('i'));
+        $('widgets').appendChild(S.dots);
+      }
+      showStackMember(id, 0);
+      setTimeout(() => placeStackDots(id), 3000);
+      const sec = ((cfg.stacks || {})[id] || {}).seconds || cfg.pageSeconds || 30;
+      rotTimers.push(setInterval(() => {
+        if (rotationPaused) return;
+        const m = stackSlots(id);
+        for (let k = 1; k <= m.length; k++) {
+          const s = m[(S.cur + k) % m.length];
+          if (!s.classList.contains('off') && !s.classList.contains('empty') || k === m.length) { showStackMember(id, (S.cur + k) % m.length); break; }
+        }
+      }, sec * 1000));
+    }
+  }
   let layoutTimer = null;
   function layoutChanged() {   // dots for pages that have nothing visible are hidden
     clickZonesChanged();
@@ -373,6 +415,7 @@
       place(slot, w.position); host.appendChild(slot);
       if (w.action) { slot.classList.add('clickable'); slot.onclick = () => { if (!(window.OrbitEditor && window.OrbitEditor.active)) toHost({ type: 'runAction', action: w.action }); }; }
       if (w.page != null) { slot.dataset.page = w.page; slot.classList.add('paged'); }   // rotating page group
+      if (w.stack) { slot.dataset.stack = w.stack; slot.classList.add('stacked'); }        // shares a place with others, takes turns
       const auto = { width: w.position.width === 'auto', height: w.position.height === 'auto' };
       const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, auto, scale: w.scale || 1, w, idx,
         init: { settings: w.settings, needs: w.needs, sizing: { width: w.position.width, height: w.position.height }, maxWidth: Math.round(innerWidth * .9) } }, slot);
@@ -482,10 +525,12 @@
     renderWidgets(widgets);
     startRotation();
     startFreePages();
+    startStacks();
   }
   window.__orbit = Object.freeze({
     get cfg() { return cfg; }, frames, zoneEls, last,
-    place, cssLen, scaled, styleZone, showPage, renderLayout, send, themeMsg, viewport, showFreePage,
+    place, cssLen, scaled, styleZone, showPage, renderLayout, send, themeMsg, viewport, showFreePage, showStackMember,
+    stackCur: id => (ST[id] || {}).cur || 0,
     get freePages() { return FP.pages.slice(); },
     setRotationPaused(on) { rotationPaused = on; },
   });
@@ -505,6 +550,7 @@
     renderWidgets(cfg.widgets);
     startRotation();
     startFreePages();
+    startStacks();
     nightDim();
     renderProblems();
     startSignals();

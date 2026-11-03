@@ -1,3 +1,8 @@
 .m-homenet .ip { opacity: .35; overflow: hidden; text-overflow: ellipsis; }
 .m-homenet .lan { transition: opacity 2s ease; }
 .m-homenet.away .lan { opacity: .35; }
+.mounts { display: flex; justify-content: flex-end; gap: 1em; }
+.mounts .mnt { font: inherit; color: inherit; letter-spacing: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.mounts .mnt:hover { text-decoration: underline; text-underline-offset: 3px; }
+.mounts .mnt:disabled { cursor: default; text-decoration: none; }
+.mounts .mnt.busy { opacity: .5; }

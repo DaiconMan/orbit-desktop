@@ -1,2 +1,4 @@
 .m-cu .row { grid-template-columns: 6em minmax(0, 1fr) 6.5em; }
 .m-cu .sub { margin: calc(var(--vh) * -.4) 0 calc(var(--vh) * .4) calc(6em + 1em); font-size: var(--t-xs); opacity: .42; letter-spacing: .06em; }
+.m-cu.stale .mb { opacity: .45; }
+.m-cu.stale .mh .mx { color: #ffb37a; opacity: .9; }

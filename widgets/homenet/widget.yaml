@@ -1,12 +1,14 @@
 id: homenet
 name: Home Net
-version: "1.0.0"
+version: "1.1.0"
 author: DaiconMan
 license: MIT
 kind: widget
 category: system
 description: "HOME / AWAY, Tailscale, NAS shares, ping sparklines and the last speed test."
 needs: [network]
+# clicking a NAS share asks the host app to mount / unmount it
+actions: [mount]
 default_size:
   width: 25vw
   height: auto

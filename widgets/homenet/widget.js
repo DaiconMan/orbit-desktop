@@ -32,8 +32,12 @@
         if (s.tailscale) { const on = s.tailscale.up;
           el.ts.innerHTML = on ? `<span style="color:${c}">● ON</span>` : '<span style="color:#ff8a7a">○ OFF</span>';
           el.ip.textContent = on ? (s.tailscale.ip || '') : ''; }
-        if (el.mounts) el.mounts.innerHTML = Object.keys(mounts).map(n => mounts[n]
-          ? `<span style="color:${c}">●</span> ${E(n.toUpperCase())}` : `<span style="opacity:.45">○ ${E(n.toUpperCase())}</span>`).join('&ensp;');
+        if (el.mounts) {        // each share is a button: click = mount / unmount (done by the host app)
+          const can = s.mountable || {};
+          el.mounts.innerHTML = Object.keys(mounts).map(n => `<button type="button" class="mnt ${mounts[n] ? 'on' : ''}" data-n="${E(n)}" ${!mounts[n] && !can[n] ? 'disabled' : ''} title="${mounts[n] ? 'クリックで取り外す' : can[n] ? 'クリックでマウント' : '一度マウントすると、ここからマウントできます'}">${mounts[n]
+            ? `<span style="color:${c}">●</span> ${E(n.toUpperCase())}` : `<span style="opacity:.45">○ ${E(n.toUpperCase())}</span>`}</button>`).join('');
+          for (const b of el.mounts.querySelectorAll('button.mnt')) b.onclick = () => { ctx.action('mount', b.dataset.n); b.classList.add('busy'); };
+        }
         if (s.speed) {
           const mbps = v => v >= 1000 ? (v / 1000).toFixed(2) + ' Gbps' : v.toFixed(0) + ' Mbps', full = ctx.settings.speed_full_scale_mbps;
           for (const [k, v] of [['dl', s.speed.dl], ['ul', s.speed.ul]]) { if (v == null) continue;

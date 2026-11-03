@@ -12,7 +12,13 @@
         const s = ctx.settings, esc = ctx.esc, ja = ctx.lang === 'ja';
         const ago = Math.max(0, Math.round((Date.now() / 1000 - d.fetched) / 60));
         m.meta.textContent = ago < 1 ? (ja ? 'たった今' : 'just now') : ago < 60 ? (ja ? `${ago}分前` : `${ago} min ago`) : (ja ? `${Math.round(ago / 60)}時間前` : `${Math.round(ago / 60)} h ago`);
+        // the numbers are Claude Code's own cached copy: say clearly when it is old or already past its reset
+        const stale = ago >= 180;
+        m.el.classList.toggle('stale', stale);
+        if (stale) m.meta.textContent = ja ? `${ago >= 2880 ? Math.round(ago / 1440) + '日' : Math.round(ago / 60) + '時間'}前のデータ` : `data from ${Math.round(ago / 60)} h ago`;
         m.body.innerHTML = d.rows.map(r => {
+          if (r.resets && new Date(r.resets).getTime() < Date.now())
+            return `<div class="row"><span class="k">${esc(NAMES[r.key] || r.key)}</span><span></span><span class="v">${ja ? 'リセット済み' : 'reset'}</span></div>`;
           const left = Math.max(0, Math.min(100, Math.round(100 - r.pct)));
           const rs = r.resets ? new Date(r.resets).toLocaleString(ctx.locale, { month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: ctx.hour12 }) : '';
           const warn = left < s.critical_below ? 'bad' : left < s.warn_below ? 'warn' : '';

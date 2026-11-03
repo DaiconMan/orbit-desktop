@@ -108,3 +108,10 @@ button.fold { font: 16px var(--font); width: 26px; height: 26px; padding: 0; bor
 .ed-ask button:empty { display: none; }
 .ed-ask button.primary { background: #2a6fd6; border-color: #5b9dff; color: #fff; font-weight: 700; }
 .ed-tabs button.del { color: #ffb3bd; border-color: #5a2a34; background: #2a1219; }
+
+/* stacks */
+.ed-box.stacked { border-style: double; border-width: 3px; }
+.ed-stack { position: absolute; right: -1px; top: 100%; margin-top: 3px; display: flex; align-items: center; gap: 6px; padding: 2px 4px;
+  border-radius: 6px; background: rgba(40,28,70,.92); color: #e6dcff; font-weight: 600; white-space: nowrap; }
+.ed-stack button { font: 600 13px var(--font); width: 22px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; }
+.ed-bar.nopages .lbl, .ed-bar.nopages .ed-tabs, .ed-bar.nopages .ed-tabs + .sep { display: none; }

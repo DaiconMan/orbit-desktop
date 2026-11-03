@@ -19,6 +19,7 @@ enum ClickActions {
         case "shortcut": runShortcut(value)
         case "script": runScript(value)
         case "music": music(value)
+        case "mount": toggleMount(value)
         default: fail("unknown action type \(type)")
         }
     }
@@ -95,6 +96,22 @@ enum ClickActions {
     }
 
     // MARK: shortcut / script
+
+    /// NAS share by name: unmount it if mounted, else mount it via Finder with the URL the server remembered
+    /// (~/Library/Caches/orbit-desktop/mounts.json, written while the share was mounted; smb:// only).
+    static func toggleMount(_ name: String) {
+        guard name.range(of: #"^[A-Za-z0-9 _.\-]{1,60}$"#, options: .regularExpression) != nil else { return fail("bad share name") }
+        let point = "/Volumes/" + name
+        var st = statfs()
+        if statfs(point, &st) == 0, withUnsafePointer(to: &st.f_fstypename, { $0.withMemoryRebound(to: CChar.self, capacity: 16) { String(cString: $0) } }) == "smbfs" {
+            runProcess("/usr/sbin/diskutil", ["unmount", point], label: "unmount \(name)")
+            return
+        }
+        let file = Paths.home.appendingPathComponent("Library/Caches/orbit-desktop/mounts.json")
+        guard let d = try? Data(contentsOf: file), let urls = (try? JSONSerialization.jsonObject(with: d)) as? [String: String],
+              let s = urls[name], s.hasPrefix("smb://"), let url = URL(string: s) else { return fail("no remembered URL for \(name)") }
+        DispatchQueue.main.async { NSWorkspace.shared.open(url) }
+    }
 
     static func runShortcut(_ name: String) {
         guard name.count <= 200, !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {

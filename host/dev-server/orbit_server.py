@@ -87,7 +87,7 @@ class State:
             plugins = oc.discover_plugins(errors, warnings, include_user=self.include_user)
             st = read_user_settings(warnings)
             arr = st.get("arrangement") if isinstance(st.get("arrangement"), dict) else None
-            overlay = {k: arr[k] for k in ("zones", "widgets") if arr and k in arr}
+            overlay = {k: arr[k] for k in ("zones", "widgets", "stacks") if arr and k in arr}
             # GUI toggles: data sources on/off, night dim (merged into layout.yaml's values)
             pv = {n: {"enabled": bool(v.get("enabled"))} for n, v in (st.get("providers") or {}).items()
                   if isinstance(v, dict) and "enabled" in v and n in oc.DEFAULT_PROVIDERS} if isinstance(st.get("providers"), dict) else {}
@@ -136,6 +136,7 @@ class State:
             "widgets": r["widgets"],
             "zones": r.get("zones", {}),
             "modules": r.get("modules", []),
+            "stacks": r.get("stacks", {}),
             "hidden": r.get("hidden", []),
             "layoutOverrides": r.get("layoutOverrides", {}),
             "allWidgets": r.get("allWidgets", r["widgets"]),
