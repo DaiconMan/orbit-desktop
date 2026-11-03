@@ -4,8 +4,13 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
+category: system
 description: "Connected Bluetooth devices with battery levels; hidden when none is connected."
 needs: [bluetooth]
 default_size:
   width: 16vw
   height: auto
+i18n:
+  ja:
+    name: "Bluetooth 機器"
+    description: "接続中の機器と電池残量"

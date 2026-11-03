@@ -195,3 +195,22 @@ host resizes your frame. Inside a frame, CSS `vh`/`vw` refer to the *frame*, so 
 ## Commit style
 [Conventional Commits](https://www.conventionalcommits.org/): `feat(widget-clock): …`,
 `fix(server): …`, `docs: …`.
+
+
+## Library metadata (layout editor)
+The editor's library and inspector read these optional manifest keys:
+
+```yaml
+category: time | weather | system | dev | life | media
+i18n:
+  ja:
+    name: 時計
+    description: 大きな時刻と日付・次の会議
+    settings: { size: 文字の大きさ（vh） }          # a label for each setting
+    options: { weight: { thin: 細い, regular: 標準 } } # labels for enum values
+actions: [music]   # host actions the widget's own buttons may request via ctx.action(type, value)
+```
+
+The inspector builds a form from `settings:`: boolean becomes a checkbox, enum a menu, number an input
+(with min/max), list a text box, and anything else a text field. Keep settings to things a user would
+plausibly change.

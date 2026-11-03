@@ -4,8 +4,9 @@ version: "0.1.0"
 author: DaiconMan
 license: MIT
 kind: widget
+category: dev
 unofficial: true
-description: "UNOFFICIAL. Remaining Claude Code usage (5-hour / weekly meters) read from an undocumented cache field in ~/.claude.json. Not affiliated with or endorsed by Anthropic; may break at any time. Requires providers.claude_usage.enabled: true."
+description: "Unofficial: remaining Claude Code usage (5-hour / weekly), read from ~/.claude.json."
 needs: [claudeUsage]
 default_size:
   width: 25vw
@@ -23,3 +24,10 @@ settings:
     min: 0
     max: 100
     description: "Red when the remaining % drops below this"
+i18n:
+  ja:
+    name: "Claude 残量"
+    description: "Claude Code の残り（5時間・週間）・非公式"
+    settings:
+      warn_below: "注意色にする残り（%）"
+      critical_below: "警告色にする残り（%）"

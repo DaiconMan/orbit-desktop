@@ -4,8 +4,13 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Full-width Earthquake Early Warning and tsunami banner with a seconds counter and a red edge flash once per new event. Zero height when nothing is active."
+category: life
+description: "Earthquake Early Warning and tsunami banner across the top; invisible when nothing is active."
 needs: [alerts]
 default_size:
   width: 100vw
   height: auto
+i18n:
+  ja:
+    name: "緊急地震速報・津波"
+    description: "緊急地震速報と津波警報のバナー"

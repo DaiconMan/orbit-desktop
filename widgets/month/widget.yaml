@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Month calendar (Sunday-first): today ringed, Sundays and public holidays in red, Saturdays in blue, dots on days with calendar events, and this month's holidays listed underneath."
+category: time
+description: "Month calendar with holidays in red, today ringed and dots on days with events."
 needs: [time, calendar, holidays]
 default_size:
   width: auto
@@ -18,3 +19,10 @@ settings:
     type: boolean
     default: true
     description: "List this month's holidays under the grid"
+i18n:
+  ja:
+    name: "月カレンダー"
+    description: "今月のカレンダーと祝日"
+    settings:
+      event_dots: "予定のある日に点を付ける"
+      holiday_list: "今月の祝日を下に一覧表示"

@@ -4,7 +4,8 @@ version: "1.1.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "One-day horizontal timeline of today's calendar: thin bars on an axis, labels on leader lines, all-day chips and NOW / NEXT."
+category: time
+description: "Today's calendar as a horizontal timeline with NOW / NEXT and all-day chips."
 needs: [calendar, time]
 default_size:
   width: 54vw
@@ -35,6 +36,7 @@ settings:
   show_all_day:
     type: boolean
     default: true
+    description: "Chips for all-day events"
   backdrop:
     type: boolean
     default: true
@@ -61,3 +63,18 @@ settings:
     type: boolean
     default: false
     description: "Show a dense synthetic day instead of the calendar (preview, like the prototype's ?cal=demo)"
+i18n:
+  ja:
+    name: "予定"
+    description: "今日の予定を横のタイムラインで"
+    settings:
+      title: "見出し"
+      start_hour: "タイムラインの開始時刻（時）"
+      end_hour: "タイムラインの終了時刻（時）"
+      max_rows: "表示する予定の最大数"
+      show_all_day: "終日の予定を表示"
+      backdrop: "背後をうっすら暗くする"
+      bleed: "暗くする範囲の左右の余白（vw）"
+      hours_before: "（旧設定・未使用）何時間前から"
+      hours_after: "（旧設定・未使用）何時間後まで"
+      demo: "デモ表示（架空の予定）"

@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "GitHub contribution heatmap for the last weeks (Sunday-first), with the total, this year's count and the current streak. Needs providers.contrib.enabled: true."
+category: dev
+description: "GitHub contribution heatmap with totals and the current streak (needs providers.contrib)."
 needs: [time, contrib]
 default_size:
   width: auto
@@ -16,3 +17,9 @@ settings:
     min: 4
     max: 26
     description: "Weeks shown, including the current one"
+i18n:
+  ja:
+    name: "GitHub ヒートマップ"
+    description: "GitHub の活動量と連続日数"
+    settings:
+      weeks: "表示する週数"

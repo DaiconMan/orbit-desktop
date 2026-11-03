@@ -163,6 +163,10 @@ it on top of `layout.yaml`:
 * `wallpaper.hidden`: plugin ids to leave out
 * `wallpaper.page_seconds`: replaces every zone's `rotate_seconds`
 * `eew`: Earthquake Early Warning options, used only by the host app
+* `providers`: `{"<name>": {"enabled": bool}}`, the data-source switches of the editor; they are merged
+  over layout.yaml's `providers` (the app restarts the server when one changes)
+* `theme.night_dim`: the editor's 夜は少し暗くする switch
+* `acknowledged`: warnings marked 確認済み (they are no longer shown in the corner notice)
 * `arrangement`: what the **layout editor** (menu → レイアウトを編集…) saved, i.e. `zones` and `widgets` in the
   same format as in `layout.yaml`. When present, they replace layout.yaml's `zones` and `widgets`. Theme,
   background and providers still come from layout.yaml. 「初期配置に戻す」 deletes it.

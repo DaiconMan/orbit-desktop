@@ -4,7 +4,7 @@ version: "1.1.0"
 author: DaiconMan
 license: MIT
 kind: background
-description: "The real night sky over your location (stars, Milky Way, planets, Moon, Sgr A*, ISS) with meteors and meteor-shower radiants, network streamlines, an occasional UFO and an optional blurred artwork backdrop."
+description: "The real night sky over your location, with meteors, network streamlines and more."
 needs: [system, audio, nowPlaying, location, iss]
 assets:
   - data/stars.6.json
@@ -29,12 +29,15 @@ settings:
   milky_way:
     type: boolean
     default: true
+    description: "Draw the Milky Way"
   planets:
     type: boolean
     default: true
+    description: "Draw the naked-eye planets"
   moon:
     type: boolean
     default: true
+    description: "Draw the Moon with its phase"
   black_hole:
     type: boolean
     default: true
@@ -46,6 +49,7 @@ settings:
   meteors:
     type: boolean
     default: true
+    description: "Shooting stars (rate follows the meteors hook)"
   showers:
     type: boolean
     default: true
@@ -57,6 +61,7 @@ settings:
   streamline_count:
     type: integer
     default: 90
+    description: "Maximum number of network streamlines"
     min: 0
     max: 300
   ufo:
@@ -70,9 +75,11 @@ settings:
   vignette:
     type: boolean
     default: true
+    description: "Darken the corners"
   scanlines:
     type: boolean
     default: true
+    description: "Faint CRT scanlines"
   heat_glow:
     type: boolean
     default: true
@@ -83,3 +90,24 @@ settings:
     min: 1
     max: 10000
     description: "Speed up sky rotation for previews (1 = real time)"
+i18n:
+  ja:
+    name: "星空"
+    description: "現在地の本物の夜空と流れ星"
+    settings:
+      fps: "フレームレートの上限（fps）"
+      milky_way: "天の川"
+      planets: "惑星"
+      moon: "月"
+      black_hole: "いて座A*（ブラックホール）"
+      labels: "天体名を表示"
+      meteors: "流れ星"
+      showers: "流星群の夜は放射点から流す"
+      iss: "ISS"
+      streamline_count: "光の流れ（通信）の本数"
+      ufo: "ときどき UFO"
+      art_backdrop: "再生中のジャケットを背景にぼかして表示"
+      vignette: "四隅を暗くする"
+      scanlines: "走査線"
+      heat_glow: "高負荷時に下端を暖色に光らせる"
+      time_scale: "空の回転速度（1 = 実時間・確認用）"

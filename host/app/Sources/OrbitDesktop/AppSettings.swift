@@ -52,6 +52,52 @@ final class AppSettings: @unchecked Sendable {
         } catch { return error }
     }
 
+    /// The on-desktop editor saved (`saveArrangement`). Every key is optional; unknown keys in the file are kept.
+    /// Returns whether a provider's `enabled` flag changed (providers are read at server start).
+    static func saveEditor(_ body: [String: Any]) -> (providersChanged: Bool, error: Error?) {
+        var raw = readRaw()
+        if let a = body["arrangement"] {
+            // the GUI arrangement replaces layout.yaml's zones + widgets; null = back to layout.yaml
+            if let arr = a as? [String: Any] { raw["arrangement"] = arr } else if a is NSNull { raw.removeValue(forKey: "arrangement") }
+            raw.removeValue(forKey: "layout")  // position overrides of the first editor version
+        }
+        var wp = raw["wallpaper"] as? [String: Any] ?? [:]
+        if let h = body["hidden"] as? [Any] { wp["hidden"] = h.compactMap { $0 as? String } }
+        if let n = body["pageSeconds"] as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(), n.doubleValue.isFinite {
+            wp["page_seconds"] = Int(min(3600, max(5, n.doubleValue.rounded())))
+        }
+        if !wp.isEmpty { raw["wallpaper"] = wp }
+        if let t = body["theme"] as? [String: Any], let dim = t["night_dim"] as? Bool {
+            var theme = raw["theme"] as? [String: Any] ?? [:]
+            theme["night_dim"] = dim
+            raw["theme"] = theme
+        }
+        var changed = false
+        if let ps = body["providers"] as? [String: Any] {
+            var cur = raw["providers"] as? [String: Any] ?? [:]
+            for (name, v) in ps {
+                guard !name.isEmpty, name.count <= 64, let on = (v as? [String: Any])?["enabled"] as? Bool else { continue }
+                var entry = cur[name] as? [String: Any] ?? [:]
+                if entry["enabled"] as? Bool != on { changed = true }
+                entry["enabled"] = on
+                cur[name] = entry
+            }
+            raw["providers"] = cur
+        }
+        return (changed, writeRaw(raw))
+    }
+
+    /// `acknowledged` = sorted union of the existing list and `warnings` (at most 200; the oldest existing entries go first).
+    @discardableResult
+    static func acknowledge(_ warnings: [String]) -> Error? {
+        var raw = readRaw()
+        var list = (raw["acknowledged"] as? [Any] ?? []).compactMap { $0 as? String }
+        for w in warnings where !w.isEmpty && !list.contains(w) { list.append(String(w.prefix(1000))) }
+        if list.count > 200 { list.removeFirst(list.count - 200) }
+        raw["acknowledged"] = list.sorted()
+        return writeRaw(raw)
+    }
+
     /// Defaults merged with the file, section by section (like the prototype's cfg()).
     func current() -> [String: [String: Any]] {
         lock.lock(); defer { lock.unlock() }

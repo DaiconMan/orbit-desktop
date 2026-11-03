@@ -3,7 +3,13 @@
    outside itself), so anchor the widget that much lower - see README. */
 .idle { opacity: 0; transition: opacity 2s ease; }
 .idle.on { opacity: 1; }
-.clock { font-size: calc(var(--size, 15) * var(--vh)); font-weight: 200; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; white-space: nowrap; }
+.clock { font-size: calc(var(--size, 15) * var(--vh)); font-weight: var(--weight, 200); line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; white-space: nowrap; }
+/* format: 12h - the AM/PM marker sits small beside the digits */
+.clock .ap { font-size: .32em; letter-spacing: .04em; vertical-align: .15em; opacity: .7; }
+.clock .ap.pre { margin-right: .3em; }
+.clock .ap.post { margin-left: .3em; }
+/* color: accent - the time takes the accent colour (follows the artwork with theme.accent: auto) */
+.accent .clock { color: rgb(var(--c)); }
 .date { font-size: calc(2 * var(--vh)); opacity: .6; margin-top: calc(1.2 * var(--vh)); letter-spacing: .08em; white-space: nowrap; }
 /* meeting countdown: hangs below the date; its row is always reserved, so the clock never moves */
 .mtg { height: calc(1.9 * var(--vh)); margin-top: calc(1.3 * var(--vh)); display: flex; align-items: center; gap: calc(.9 * var(--vh));

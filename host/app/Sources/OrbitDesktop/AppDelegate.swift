@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let server = ServerProcess()
@@ -29,16 +28,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         startEEW()
         server.onStateChange = { [weak self] st in self?.serverStateChanged(st) }
         desktop.onSaveLayout = { [weak self] layout, hidden in self?.saveLayout(layout, hidden: hidden) }
-        desktop.onSaveArrangement = { arr, hidden in
-            // the GUI arrangement replaces layout.yaml's zones + widgets; nil = back to layout.yaml
-            var raw = AppSettings.readRaw()
-            if let arr { raw["arrangement"] = arr } else { raw.removeValue(forKey: "arrangement") }
-            raw.removeValue(forKey: "layout")      // position overrides of the first editor version
-            var wp = raw["wallpaper"] as? [String: Any] ?? [:]
-            wp["hidden"] = hidden
-            raw["wallpaper"] = wp
-            if let err = AppSettings.writeRaw(raw) { NSLog("[orbit] saving arrangement failed: \(err)") }
+        desktop.onSaveArrangement = { body in
+            let r = AppSettings.saveEditor(body)
+            if let err = r.error { NSLog("[orbit] saving arrangement failed: \(err)"); return false }
+            return r.providersChanged
         }
+        desktop.onRestartServer = { [weak self] in self?.server.restart() }
+        desktop.onAckWarnings = { [weak self] list in
+            if let err = AppSettings.acknowledge(list) { NSLog("[orbit] saving acknowledged failed: \(err)") }
+            self?.refreshReview()
+        }
+        desktop.onPluginErrorsChanged = { [weak self] in self?.updateReviewTitle() }
         desktop.onEditingChanged = { [weak self] on in self?.editItem.state = on ? .on : .off }
         server.start()
         // the runtime page polls the config itself; we only need it to decide which providers run
@@ -63,14 +63,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         eew.onNotify = { [weak self] title, body in self?.notifier.post(title: title, body: body) }
         settingsWindow.model.onNotifyEnabled = { [weak self] in self?.notifier.requestAuthorization() }
-        settingsWindow.model.onEditLayout = { [weak self] in
-            NSApp.keyWindow?.close()
-            self?.desktop.setEditing(true)
-        }
-        settingsWindow.model.onSaved = { [weak self] in
-            // the server re-reads settings.json (wallpaper.hidden / page_seconds) on its own
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.desktop.reload() }
-        }
         eew.start()
     }
 
@@ -119,6 +111,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         needs = n
         configPath = (cfg["configPath"] as? String) ?? ""
         configErrors = (cfg["errors"] as? [Any])?.count ?? 0
+        review = Review(cfg)
+        updateReviewTitle()
 
         if n.contains("calendar") { calendar.start() } else { calendar.stop() }
         if #available(macOS 14.2, *) {
@@ -152,12 +146,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // everyday actions are GUI-only; editing files lives under 詳細
         editItem = item("レイアウトを編集…", #selector(toggleEditLayout), "e")
         m.addItem(editItem)
-        m.addItem(item("表示する項目・緊急地震速報の設定…", #selector(openSettings), ","))
+        m.addItem(item("設定…", #selector(openSettings), ","))
+        m.addItem(reviewItem)
         m.addItem(item("壁紙を再読み込み", #selector(reload), "r"))
         m.addItem(item("緊急地震速報のテスト表示", #selector(testEEW), ""))
         m.addItem(.separator())
         let adv = NSMenu()
-        for (t, sel) in [("layout.yaml をテキストで編集…", #selector(editLayout)), ("設定の警告を表示…", #selector(showWarnings)),
+        for (t, sel) in [("layout.yaml をテキストで編集…", #selector(editLayout)),
                          ("ブラウザでプレビュー", #selector(openPreview)), ("サーバのログを表示", #selector(showLog)),
                          ("サーバを再起動", #selector(restartServer))] {
             adv.addItem(item(t, sel, ""))
@@ -180,7 +175,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         refreshStatus()
         refreshEEWLine()
-        menu.items.first { $0.action == #selector(toggleLogin) }?.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        updateReviewTitle()
+        refreshReview()
+        menu.items.first { $0.action == #selector(toggleLogin) }?.state = LoginItem.isEnabled ? .on : .off
     }
 
     private func refreshStatus() {
@@ -226,21 +223,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let err = AppSettings.writeRaw(raw) { NSLog("[orbit] saving layout failed: \(err)") }
     }
 
-    /// Config warnings (e.g. personal / unofficial providers enabled) are listed here instead of on the desktop.
-    @objc private func showWarnings() {
-        OrbitAPI.get("/api/config") { [unowned self] obj in
-            let cfg = obj as? [String: Any]
-            let warns = (cfg?["warnings"] as? [String]) ?? []
-            let errs = ((cfg?["errors"] as? [String]) ?? []) + self.desktop.pluginErrors.map { "ウィジェットのエラー: " + $0 }
-            let a = NSAlert()
-            a.messageText = errs.isEmpty && warns.isEmpty ? "設定に警告はありません" : "設定の警告"
-            a.informativeText = (errs.map { "⚠︎ " + $0 } + warns.map { "・" + $0 }).joined(separator: "\n\n")
-            NSApp.activate(ignoringOtherApps: true)
-            a.runModal()
+    // MARK: 確認事項 (config errors, warnings, widget errors)
+    private struct Review {
+        var errors: [String] = [], warnings: [String] = [], ack: Set<String> = []
+        init() {}
+        init(_ cfg: [String: Any]) {
+            errors = (cfg["errors"] as? [Any] ?? []).compactMap { $0 as? String }
+            warnings = (cfg["warnings"] as? [Any] ?? []).compactMap { $0 as? String }
+            ack = Set((cfg["ackWarnings"] as? [Any] ?? []).compactMap { $0 as? String })
+        }
+    }
+    private var review = Review()
+    private lazy var reviewItem = item("確認事項…", #selector(showReview), "")
+
+    /// errors + warnings not yet acknowledged + widget errors not yet acknowledged
+    private var reviewCount: Int {
+        review.errors.count + review.warnings.filter { !review.ack.contains($0) }.count
+            + desktop.pluginErrors.filter { !review.ack.contains($0.message) }.count
+    }
+
+    private func updateReviewTitle() {
+        let n = reviewCount
+        reviewItem.title = n > 0 ? "確認事項（\(n)）…" : "確認事項…"
+    }
+
+    private func refreshReview(_ done: (() -> Void)? = nil) {
+        guard server.state == .running else { done?(); return }
+        OrbitAPI.get("/api/config") { [weak self] obj in
+            guard let self else { return }
+            if let cfg = obj as? [String: Any] { self.review = Review(cfg); self.updateReviewTitle() }
+            done?()
         }
     }
 
-        @objc private func editLayout() {
+    /// Config warnings (e.g. personal / unofficial providers enabled) are listed here instead of on the desktop.
+    @objc private func showReview() {
+        refreshReview { [weak self] in
+            guard let self else { return }
+            let r = self.review
+            let fmt = DateFormatter()
+            fmt.timeStyle = .short
+            fmt.dateStyle = .none
+            let plugin = self.desktop.pluginErrors
+            var lines = r.errors.map { "⚠︎ " + $0 }
+            lines += r.warnings.map { (r.ack.contains($0) ? "✓ " : "・") + $0 }
+            lines += plugin.map { (r.ack.contains($0.message) ? "✓ " : "・") + "ウィジェットのエラー（\(fmt.string(from: $0.time))）: " + $0.message }
+            let a = NSAlert()
+            a.messageText = lines.isEmpty ? "確認事項はありません" : "確認事項"
+            a.informativeText = lines.isEmpty ? "" : lines.joined(separator: "\n\n") + (r.ack.isEmpty ? "" : "\n\n✓ = 確認済み")
+            if !r.warnings.isEmpty || !plugin.isEmpty { a.addButton(withTitle: "確認済みにする") }
+            a.addButton(withTitle: "閉じる")
+            NSApp.activate(ignoringOtherApps: true)
+            guard a.runModal() == .alertFirstButtonReturn, !r.warnings.isEmpty || !plugin.isEmpty else { return }
+            if let err = AppSettings.acknowledge(r.warnings + plugin.map(\.message)) {
+                NSLog("[orbit] saving acknowledged failed: \(err)")
+                return NSSound.beep()
+            }
+            // the server re-reads settings.json on its own; give it a moment, then reload
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                self.desktop.reload()
+                self.refreshReview()
+            }
+        }
+    }
+
+    @objc private func editLayout() {
         let fm = FileManager.default
         if !fm.fileExists(atPath: Paths.userConfig.path) {
             // first edit: start the user's own copy from the example, then make the server use it
@@ -280,17 +327,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func restartServer() { server.restart() }
 
-    @objc private func toggleLogin() {
-        let svc = SMAppService.mainApp
-        do {
-            if svc.status == .enabled { try svc.unregister() } else { try svc.register() }
-        } catch {
-            let a = NSAlert()
-            a.messageText = "Could not change the login item"
-            a.informativeText = "\(error.localizedDescription)\nMove Orbit Desktop.app to /Applications and try again."
-            a.runModal()
-        }
-    }
+    @objc private func toggleLogin() { LoginItem.set(!LoginItem.isEnabled) }
 
     @objc private func quit() { NSApp.terminate(nil) }
 }

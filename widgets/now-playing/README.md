@@ -26,3 +26,9 @@ had it (bottom 33vh), anchor it 4vh lower:
 
 The glide starts 70vw to the left as in the prototype but becomes visible at the frame's left edge
 (x), softened by a 6vw feather that slides away once the stage has arrived.
+
+## Playback buttons
+With `controls: true` (default) the widget shows previous / play-pause / next and shuffle / repeat buttons.
+Up to three `playlists` (Music playlist names, or `spotify:` URIs) appear as buttons. When nothing is
+playing, they stay visible under the stage, so you can start a playlist. The buttons ask the host app to
+control Music or Spotify (manifest `actions: [music]`); the widget itself can't reach the players.

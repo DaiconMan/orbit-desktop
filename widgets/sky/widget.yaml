@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Small alt/az chart of the Sun, Moon (with phase), planets and the ISS above your location: zenith in the centre, north up, east left, as when looking up."
+category: weather
+description: "Small sky chart of the Sun, Moon, planets and ISS overhead (zenith centre, north up)."
 needs: [time, location, iss]
 default_size:
   width: auto
@@ -18,3 +19,10 @@ settings:
     type: boolean
     default: true
     description: "Japanese name labels next to each body (dropped when they would collide)"
+i18n:
+  ja:
+    name: "星図"
+    description: "太陽・月・惑星・ISS の位置"
+    settings:
+      iss: "ISS を表示"
+      labels: "天体名を表示"

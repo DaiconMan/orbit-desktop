@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Agenda of the coming days from your calendar (from tomorrow, since today is on the schedule timeline), grouped by day with holidays marked. Hides itself when nothing is coming up."
+category: time
+description: "Agenda of the coming days from your calendar, grouped by day with holidays marked."
 needs: [time, calendar, holidays]
 default_size:
   width: auto
@@ -26,3 +27,11 @@ settings:
     type: boolean
     default: false
     description: "Also list today's events"
+i18n:
+  ja:
+    name: "今週の予定"
+    description: "明日からの予定を日ごとに"
+    settings:
+      days: "明日から何日先まで"
+      max_rows: "最大の行数"
+      include_today: "今日の予定も含める"

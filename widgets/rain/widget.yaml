@@ -4,8 +4,13 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
+category: weather
 description: "Precipitation for the next 2 hours in 15-minute steps; hidden while it stays dry."
 needs: [weather]
 default_size:
   width: 16vw
   height: auto
+i18n:
+  ja:
+    name: "雨（2時間）"
+    description: "2時間先までの降水（15分ごと）"

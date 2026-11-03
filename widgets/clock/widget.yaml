@@ -1,27 +1,50 @@
 id: clock
 name: Clock
-version: "1.1.0"
+version: "1.2.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Large thin clock with the date underneath, and a meeting countdown below the date."
+category: time
+description: "Big thin clock with the date and the next meeting underneath."
 needs: [time, calendar]
 default_size:
   width: auto
   height: auto
 settings:
-  show_date:
-    type: boolean
-    default: true
+  format:
+    type: enum
+    options: [auto, 24h, 12h]
+    default: auto
+    description: "24- or 12-hour time (auto = theme.hour12)"
   seconds:
     type: boolean
     default: false
+    description: "Show seconds"
+  date_style:
+    type: enum
+    options: [long, short, numeric, none]
+    default: long
+    description: "long = November 4 Wednesday, short = 11/4 (Wed), numeric = 2026-11-04, none = no date"
+  show_date:
+    type: boolean
+    default: true
+    description: "Legacy switch: off hides the date like date_style: none"
   size:
     type: number
     default: 15
     min: 2
     max: 40
     description: "Clock font size in host vh"
+  weight:
+    type: enum
+    options: [thin, light, regular, medium]
+    default: thin
+    description: "Font weight of the time (thin = 200 … medium = 500)"
+  color:
+    type: enum
+    options: [theme, accent]
+    default: theme
+    description: "Text colour of the time: theme text colour or the accent colour"
   meeting:
     type: boolean
     default: true
@@ -32,3 +55,22 @@ settings:
     min: 1
     max: 120
     description: "Show the next event this many minutes before it starts"
+i18n:
+  ja:
+    name: "時計"
+    description: "大きな時刻と日付・次の会議"
+    settings:
+      format: "時刻の表記"
+      seconds: "秒を表示"
+      date_style: "日付の表記"
+      show_date: "日付を表示（旧設定）"
+      size: "文字の大きさ（vh）"
+      weight: "文字の太さ"
+      color: "時刻の色"
+      meeting: "次の会議までのカウントダウン"
+      meeting_lead: "会議の何分前から表示するか"
+    options:
+      format: { auto: "自動（システムに合わせる）", 24h: "24時間", 12h: "12時間（午前 / 午後）" }
+      date_style: { long: "11月4日 水曜日", short: "11/4 (水)", numeric: "2026-11-04", none: "表示しない" }
+      weight: { thin: "細い", light: "やや細い", regular: "標準", medium: "やや太い" }
+      color: { theme: "文字の色", accent: "アクセント色" }

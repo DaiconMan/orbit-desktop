@@ -4,8 +4,13 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "CPU, memory, disk I/O and network sparklines with an IDLE / ACTIVE / BUSY / HIGH LOAD status."
+category: system
+description: "CPU, memory, disk I/O and network sparklines with an IDLE … HIGH LOAD status."
 needs: [system]
 default_size:
   width: 25vw
   height: auto
+i18n:
+  ja:
+    name: "負荷"
+    description: "CPU・メモリ・ディスク・通信の推移"

@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "World clock tiles: the time in a list of time zones, the hour offset from your local time and a 昨日 / 明日 mark when the date differs."
+category: time
+description: "Time in other time zones with the offset from local time and 昨日 / 明日 marks."
 needs: [time]
 default_size:
   width: auto
@@ -22,3 +23,10 @@ settings:
     type: string
     default: ""
     description: "Reference zone for the offsets and day marks (empty = system time zone)"
+i18n:
+  ja:
+    name: "世界時計"
+    description: "各地の時刻と時差"
+    settings:
+      clocks: "表示する都市（表示名とタイムゾーン）"
+      home_tz: "基準のタイムゾーン（空欄 = この Mac）"

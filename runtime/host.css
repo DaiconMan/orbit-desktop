@@ -7,15 +7,21 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #05060a; col
 .slot { position: absolute; }
 .slot iframe { display: block; border: 0; background: transparent; color-scheme: normal; pointer-events: none; }
 .slot.pending iframe { visibility: hidden; }
-.problems { position: fixed; z-index: 1000; left: 50%; top: 2vh; transform: translateX(-50%); max-width: 70vw; max-height: 60vh; overflow: hidden;
-  padding: 1.4vh 1.8vh; border-radius: 12px; background: rgba(30, 6, 12, .82); border: 1px solid rgba(255, 90, 110, .5);
-  font: 500 12px/1.5 var(--mono); color: #ffd9de; box-shadow: 0 10px 40px rgba(0, 0, 0, .5); }
-.problems.only-warn { background: rgba(28, 22, 4, .8); border-color: rgba(255, 184, 77, .5); color: #ffe9c2; }
-.problems h1 { font: 700 12px var(--mono); letter-spacing: .2em; margin: 0 0 .8vh; text-transform: uppercase; }
-.problems ul { margin: 0; padding-left: 1.2em; }
-.problems li.warn { color: #ffd38a; }
-.problems small { opacity: .6; display: block; margin-top: .8vh; }
-
+/* notices, bottom-right (see renderProblems) */
+.notice { position: fixed; z-index: 1000; right: 2vw; bottom: 2.4vh; max-width: 34vw; display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+  font: 500 12px/1.5 var(--font); pointer-events: auto; }
+.notice .pill { font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 10px; }
+.notice .pill::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
+.notice.err .pill { background: rgba(60,12,20,.9); border: 1px solid rgba(255,90,110,.6); color: #ffd9de; }
+.notice.err .pill::before { background: #ff5d6e; }
+.notice.warn .pill { background: rgba(28,24,10,.88); border: 1px solid rgba(255,190,90,.45); color: #ffe9c2; }
+.notice.warn .pill::before { background: #ffbe5a; }
+.notice ul { margin: 0; padding: 12px 14px 12px 28px; border-radius: 12px; background: rgba(16,18,26,.95); border: 1px solid rgba(255,255,255,.14); color: #e8ebf2; }
+.notice li.e { color: #ffb3bd; }
+.notice .ack { font: inherit; cursor: pointer; padding: 5px 12px; border-radius: 7px; border: 1px solid #c89a3a; background: #7a5a14; color: #fff; }
+.notice small { opacity: .5; font: 11px var(--mono); }
+.slot.clickable { pointer-events: auto; cursor: pointer; }
+.slot iframe.interactive { pointer-events: auto; }
 /* zones: vertical flow, no overlaps; paged zones crossfade between pages of columns */
 .zone { position: absolute; display: flex; flex-direction: column; gap: var(--gap, 3.4vh); }
 .zone.paged { display: block; }

@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "CPU, memory, disk I/O and network sparklines, latency to configured hosts and the last speed test."
+category: system
+description: "CPU, memory, disk I/O and network sparklines, ping latency and the last speed test."
 needs: [system]
 default_size:
   width: 25vw
@@ -17,9 +18,11 @@ settings:
   show_disk:
     type: boolean
     default: true
+    description: "Disk read / write sparkline"
   show_network:
     type: boolean
     default: true
+    description: "Network up / down sparkline"
   show_ping:
     type: boolean
     default: true
@@ -31,5 +34,17 @@ settings:
   speed_full_scale_mbps:
     type: number
     default: 1000
+    description: "Speed bars are full at this many Mbps"
     min: 10
     max: 100000
+i18n:
+  ja:
+    name: "システム情報"
+    description: "CPU・メモリ・通信・ping・回線速度"
+    settings:
+      show_status: "負荷の状態（IDLE / BUSY など）を表示"
+      show_disk: "ディスク I/O を表示"
+      show_network: "通信量を表示"
+      show_ping: "ping の遅延を表示"
+      show_speed: "回線速度を表示"
+      speed_full_scale_mbps: "回線速度メーターの最大（Mbps）"

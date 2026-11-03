@@ -87,9 +87,19 @@ class State:
             plugins = oc.discover_plugins(errors, warnings, include_user=self.include_user)
             st = read_user_settings(warnings)
             arr = st.get("arrangement") if isinstance(st.get("arrangement"), dict) else None
-            overlay = {k: arr[k] for k in ("zones", "widgets") if arr and k in arr} or None
+            overlay = {k: arr[k] for k in ("zones", "widgets") if arr and k in arr}
+            # GUI toggles: data sources on/off, night dim (merged into layout.yaml's values)
+            pv = {n: {"enabled": bool(v.get("enabled"))} for n, v in (st.get("providers") or {}).items()
+                  if isinstance(v, dict) and "enabled" in v and n in oc.DEFAULT_PROVIDERS} if isinstance(st.get("providers"), dict) else {}
+            if pv:
+                overlay["providers"] = pv
+            th = st.get("theme") if isinstance(st.get("theme"), dict) else {}
+            if isinstance(th.get("night_dim"), bool):
+                overlay["theme"] = {"night_dim": th["night_dim"]}
+            overlay = overlay or None
             res = oc.load_layout(self.config_path, plugins, overlay)
-            res["arranged"] = bool(overlay)
+            res["arranged"] = bool(arr)
+            res["ackWarnings"] = [a for a in (st.get("acknowledged") or []) if isinstance(a, str)][:200]
             res["catalog"] = catalog(plugins, res["providers"])
             # every module of the layout, before settings.json hides some (for the settings window)
             seen = set()
@@ -132,6 +142,8 @@ class State:
             "catalog": r.get("catalog", []),
             "arranged": r.get("arranged", False),
             "pageSeconds": r.get("pageSeconds", 30),
+            "ackWarnings": r.get("ackWarnings", []),
+            "providerState": {k: v["enabled"] for k, v in prov.items() if isinstance(v, dict) and "enabled" in v},
             "signals": signals,
             "providers": {"weather": prov["weather"]["enabled"], "nowPlaying": prov["now_playing"]["enabled"],
                           "claudeUsage": prov["claude_usage"]["enabled"], "speedtest": prov["speedtest"]["enabled"],
@@ -202,9 +214,12 @@ def catalog(plugins, providers):
             continue
         off = sorted({oc.SIGNAL_PROVIDER[s] for s in m["needs"] if oc.SIGNAL_PROVIDER.get(s)
                       and not providers[oc.SIGNAL_PROVIDER[s]]["enabled"]})
+        provs = sorted({oc.SIGNAL_PROVIDER[s] for s in m["needs"] if oc.SIGNAL_PROVIDER.get(s)})
         out.append({"id": pid, "name": m.get("name") or pid, "description": m.get("description") or "",
+                    "category": m.get("category"), "i18n": m.get("i18n") or {}, "actions": list(m.get("actions") or []),
                     "needs": list(m["needs"]), "assets": list(m.get("assets") or []),
                     "settings": oc.apply_settings(m.get("settings"), None, "", [], []),
+                    "schema": m.get("settings") or {}, "providers": provs,
                     "defaultSize": m.get("default_size") or {}, "unofficial": m.get("unofficial", False),
                     "providersOff": off})
     return out

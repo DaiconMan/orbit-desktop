@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "The last few tracks you played (local history kept by the now-playing provider), with how long ago; the current track is marked 再生中 / 一時停止. Hidden while the history is empty."
+category: media
+description: "The last tracks you played, with how long ago."
 needs: [time, recent, nowPlaying]
 default_size:
   width: auto
@@ -16,3 +17,9 @@ settings:
     min: 1
     max: 10
     description: "Tracks shown"
+i18n:
+  ja:
+    name: "最近の曲"
+    description: "最近再生した曲"
+    settings:
+      count: "表示する曲数"

@@ -4,8 +4,13 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Battery, free disk space, Time Machine and active (input) time today as tiles."
+category: system
+description: "Battery, free disk space, Time Machine and active time today as tiles."
 needs: [mac]
 default_size:
   width: 16vw
   height: auto
+i18n:
+  ja:
+    name: "Mac"
+    description: "電池・空き容量・Time Machine・作業時間"

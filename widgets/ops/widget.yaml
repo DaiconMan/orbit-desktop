@@ -4,9 +4,14 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
+category: dev
 unofficial: true
-description: "PERSONAL / UNOFFICIAL. GitHub review requests and failing CI, RFCs awaiting approval, local Claude Code sessions and the remaining weekly Claude usage."
+description: "Personal: GitHub reviews and failing CI, RFCs awaiting approval, Claude Code sessions."
 needs: [github, rfc, sessions, claudeUsage]
 default_size:
   width: 16vw
   height: auto
+i18n:
+  ja:
+    name: "開発・運用"
+    description: "レビュー依頼・CI・RFC・Claude セッション"

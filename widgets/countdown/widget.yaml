@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Time until the next meeting, the next public holiday, the weekly Claude usage reset and the next meteor shower peak."
+category: time
+description: "Time until the next meeting, public holiday, Claude usage reset and meteor shower."
 needs: [time, calendar, holidays, claudeUsage]
 default_size:
   width: 16vw
@@ -14,3 +15,9 @@ settings:
     type: boolean
     default: true
     description: "Show the next annual meteor shower peak"
+i18n:
+  ja:
+    name: "カウントダウン"
+    description: "次の会議・祝日・流星群まで"
+    settings:
+      meteors: "次の流星群を表示"

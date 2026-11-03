@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Next rocket launch (mission, rocket, provider, site) with a T− countdown and status, then the following launches. Data: The Space Devs via the launches provider. Hidden when nothing is scheduled."
+category: life
+description: "Next rocket launch with a T− countdown, then the following launches."
 needs: [time, launches]
 default_size:
   width: auto
@@ -16,3 +17,9 @@ settings:
     min: 0
     max: 8
     description: "Further launches listed under the next one"
+i18n:
+  ja:
+    name: "ロケット打ち上げ"
+    description: "次の打ち上げまでの T− カウントダウン"
+    settings:
+      more: "続けて表示する打ち上げの件数"

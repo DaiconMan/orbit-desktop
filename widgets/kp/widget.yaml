@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "NOAA planetary Kp index: the current value with a calm / active / storm label and 3-hourly bars for the last three days. Hidden while there is no data."
+category: weather
+description: "NOAA Kp index (geomagnetic activity) with the last three days as bars."
 needs: [kp]
 default_size:
   width: auto
@@ -14,3 +15,9 @@ settings:
     type: boolean
     default: true
     description: "Aurora hint line at Kp 5+ (wording assumes Japan: 北海道 at Kp 7+)"
+i18n:
+  ja:
+    name: "宇宙天気（Kp）"
+    description: "地磁気の Kp 指数と3日間の推移"
+    settings:
+      aurora_hint: "オーロラの目安を表示（Kp 5 以上）"

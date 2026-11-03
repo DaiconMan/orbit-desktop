@@ -40,3 +40,18 @@
 .bar { margin-top: calc(1.6 * var(--vh)); width: calc(22 * var(--vw)); height: 2px; background: rgba(255,255,255,.14); }
 .bar i { display: block; height: 100%; width: 0; background: rgba(255,255,255,.7); }
 [hidden] { display: none !important; }
+
+/* playback buttons (quiet until hovered) and favourite playlists */
+.ctl { margin-top: calc(1.4 * var(--vh)); display: flex; flex-direction: column; gap: calc(.9 * var(--vh)); }
+.ctl .row { display: flex; align-items: center; gap: calc(.6 * var(--vw)); }
+.ctl .gap { width: calc(.8 * var(--vw)); }
+.ctl button, .idle button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; opacity: .55; transition: opacity .3s, transform .2s; }
+.ctl button:hover, .idle button:hover { opacity: 1; }
+.ctl button.hit, .idle button.hit { transform: scale(.88); }
+.ctl .row svg { display: block; width: calc(2.2 * var(--vh)); height: calc(2.2 * var(--vh)); }
+.ctl .row button[data-v=playpause] svg { width: calc(2.6 * var(--vh)); height: calc(2.6 * var(--vh)); }
+.pls, .idle { display: flex; flex-wrap: wrap; gap: calc(.5 * var(--vw)); }
+.pls button, .idle button { font: 500 calc(1.2 * var(--vh)) var(--font); padding: calc(.35 * var(--vh)) calc(.7 * var(--vw)); border: 1px solid rgba(255,255,255,.18); border-radius: 99px; }
+.idle { opacity: 0; transition: opacity 2s ease; pointer-events: none; align-items: center; margin-top: calc(1 * var(--vh)); }
+.idle.on { opacity: .8; pointer-events: auto; }
+.idle .lbl { opacity: .5; font-size: calc(1.4 * var(--vh)); }

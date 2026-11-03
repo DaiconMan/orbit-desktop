@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Tonight's sky in words: moon phase and age, planets above the horizon, the ISS, the next meteor shower and sunrise / sunset. Computed locally for your location."
+category: weather
+description: "Tonight's sky in words: moon phase, planets, ISS, next meteor shower, sunrise / sunset."
 needs: [time, location, iss, weather]
 default_size:
   width: auto
@@ -22,3 +23,11 @@ settings:
     type: boolean
     default: true
     description: "Sunrise / sunset from the weather forecast"
+i18n:
+  ja:
+    name: "今夜の空"
+    description: "月齢・見える惑星・ISS・流星群"
+    settings:
+      iss: "ISS の通過を表示"
+      meteors: "次の流星群を表示"
+      sun: "日の出・日の入りを表示"

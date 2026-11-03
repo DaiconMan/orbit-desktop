@@ -52,23 +52,55 @@
   }
 
   /* ------------------------------------------------------------ problems panel */
+  /* notices (bottom-right): ① errors stay until fixed (red); ② new warnings and widget errors (yellow) until
+     「確認済みにする」; ③ acknowledged ones are only listed in the host app's 確認事項 menu. */
+  const toHost = msg => { try { window.webkit.messageHandlers.orbit.postMessage(msg); return true; } catch (_) { return false; } };
+  let noticeOpen = false, ackLocal = new Set();
   function renderProblems() {
-    const errs = (cfg ? cfg.errors : []).concat(runtimeErrors, location.search.includes('debug') ? pluginErrors : []);
-    // warnings never sit on the desktop: the host app lists them (menu → 設定の警告を表示…); ?debug shows them here
-    const warns = cfg && location.search.includes('debug') ? cfg.warnings : [];
-    const el = $('problems');
-    if (!errs.length && !warns.length) { el.hidden = true; return; }
-    el.hidden = false; el.classList.toggle('only-warn', !errs.length);
+    const el = $('problems'); if (!el) return;
+    const errs = (cfg ? cfg.errors : []).concat(runtimeErrors);
+    const ack = new Set([...(cfg && cfg.ackWarnings) || [], ...ackLocal]);
+    const warns = (cfg ? cfg.warnings : []).concat(pluginErrors).filter(w => !ack.has(w));
     el.textContent = '';
-    const h = document.createElement('h1'); h.textContent = errs.length ? 'Orbit Desktop · configuration problems' : 'Orbit Desktop · warnings';
-    const ul = document.createElement('ul');
-    for (const e of errs.slice(0, 14)) { const li = document.createElement('li'); li.textContent = e; ul.appendChild(li); }
-    for (const w of warns.slice(0, 6)) { const li = document.createElement('li'); li.className = 'warn'; li.textContent = w; ul.appendChild(li); }
-    const s = document.createElement('small'); s.textContent = cfg ? `config: ${cfg.configPath} — fix the file and the desktop reloads automatically` : '';
-    el.append(h, ul, s);
+    if (!errs.length && !warns.length) { el.hidden = true; clickZonesChanged(); return; }
+    el.hidden = false;
+    el.className = 'notice ' + (errs.length ? 'err' : 'warn') + (noticeOpen ? ' open' : '');
+    const pill = document.createElement('button');
+    pill.type = 'button'; pill.className = 'pill';
+    pill.textContent = errs.length ? `設定に誤りがあります（${errs.length}件）` : `確認してほしいこと（${warns.length}件）`;
+    pill.onclick = () => { noticeOpen = !noticeOpen; renderProblems(); };
+    el.appendChild(pill);
+    if (noticeOpen) {
+      const ul = document.createElement('ul');
+      for (const e of errs.slice(0, 10)) { const li = document.createElement('li'); li.className = 'e'; li.textContent = e; ul.appendChild(li); }
+      for (const w of warns.slice(0, 10)) { const li = document.createElement('li'); li.textContent = w; ul.appendChild(li); }
+      el.appendChild(ul);
+      if (warns.length) {
+        const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'ack'; ok.textContent = '確認済みにする';
+        ok.onclick = () => { warns.forEach(w => ackLocal.add(w)); toHost({ type: 'ackWarnings', warnings: warns }); noticeOpen = false; renderProblems(); };
+        el.appendChild(ok);
+      }
+      if (errs.length && cfg) { const s = document.createElement('small'); s.textContent = cfg.configPath; el.appendChild(s); }
+    }
+    clickZonesChanged();
   }
-  const bootAt = Date.now();
-  setTimeout(renderProblems, 20500);
+
+  /* click zones: the wallpaper ignores the mouse except over these rects (the host app polls the pointer).
+     A widget with a click action (layout editor), a widget whose manifest declares `actions` (its own buttons),
+     and the notice. */
+  let zonesTimer = null, zonesKey = '';
+  function clickZonesChanged() {
+    clearTimeout(zonesTimer);
+    zonesTimer = setTimeout(() => {
+      if (window.OrbitEditor && window.OrbitEditor.active) return;
+      const rects = [];
+      const add = el => { const r = el.getBoundingClientRect(); if (r.width > 1 && r.height > 1 && getComputedStyle(el).visibility !== 'hidden') rects.push({ x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }); };
+      for (const f of frames) if (f.kind === 'widget' && !f.dead && f.w && (f.w.action || (f.w.actions || []).length) && !f.slot.classList.contains('pg-off')) add(f.slot);
+      const n = $('problems'); if (n && !n.hidden) add(n);
+      const key = JSON.stringify(rects);
+      if (key !== zonesKey) { zonesKey = key; toHost({ type: 'clickZones', zones: rects }); }
+    }, 250);
+  }
 
   /* ------------------------------------------------------------ frames */
   const assetCache = {};
@@ -123,6 +155,8 @@
       f.slot.classList.toggle('empty', !!f.zoned && h < 2);   // nothing to show: collapse inside a zone
       if (f.fill) fitFill(f, h);
       layoutChanged();
+    } else if (m.type === 'action' && m.action && f.w && (f.w.actions || []).includes(m.action.type)) {
+      toHost({ type: 'runAction', action: { type: String(m.action.type), value: String(m.action.value || '').slice(0, 300) } });
     } else if (m.type === 'visible') {
       f.slot.classList.toggle('off', !m.on);
       layoutChanged();
@@ -133,8 +167,8 @@
       console.warn('[orbit plugin]', msg);
       if (!pluginErrors.includes(msg) && pluginErrors.length < 20) {
         pluginErrors.push(msg);
-        try { window.webkit.messageHandlers.orbit.postMessage({ type: 'pluginError', message: msg }); } catch (_) {}
-        if (location.search.includes('debug')) renderProblems();
+        toHost({ type: 'pluginError', message: msg });
+        renderProblems();
       }
     }
   });
@@ -255,7 +289,7 @@
   const FP = { pages: [], cur: null, dots: null };
   const pagedSlots = () => [...document.querySelectorAll('#widgets > .slot.paged')];
   function showFreePage(p) {           // p = page number, or null = only the always-shown widgets
-    FP.cur = p;
+    FP.cur = p; clickZonesChanged();
     for (const s of pagedSlots()) s.classList.toggle('pg-off', +s.dataset.page !== p);
     if (FP.dots) [...FP.dots.children].forEach((d, k) => d.classList.toggle('on', FP.pages[k] === p));
   }
@@ -291,6 +325,7 @@
   }
   let layoutTimer = null;
   function layoutChanged() {   // dots for pages that have nothing visible are hidden
+    clickZonesChanged();
     clearTimeout(layoutTimer);
     layoutTimer = setTimeout(() => {
       for (const Z of Object.values(zoneEls)) if (Z.dots) Z.pages.forEach((p, k) => { Z.dots.children[k].hidden = !pageVisible(p); });
@@ -312,14 +347,18 @@
         const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, zoned: true, zone: w.zone, fill: !!(w.fill && Z.paged), scale: (Z.z.scale || 1) * (w.scale || 1), w, idx, auto: { width: false, height: true },
           init: { settings: w.settings, needs: w.needs, sizing: { width: 'zone', height: 'auto' }, maxWidth: colW } }, slot);
         f.iframe.style.width = '100%'; f.iframe.style.height = '10px';
+        if (w.action) { slot.classList.add('clickable'); slot.onclick = () => { if (!(window.OrbitEditor && window.OrbitEditor.active)) toHost({ type: 'runAction', action: w.action }); }; }
+        else if ((w.actions || []).length) f.iframe.classList.add('interactive');
         return;
       }
       place(slot, w.position); host.appendChild(slot);
+      if (w.action) { slot.classList.add('clickable'); slot.onclick = () => { if (!(window.OrbitEditor && window.OrbitEditor.active)) toHost({ type: 'runAction', action: w.action }); }; }
       if (w.page != null) { slot.dataset.page = w.page; slot.classList.add('paged'); }   // rotating page group
       const auto = { width: w.position.width === 'auto', height: w.position.height === 'auto' };
       const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, auto, scale: w.scale || 1, w, idx,
         init: { settings: w.settings, needs: w.needs, sizing: { width: w.position.width, height: w.position.height }, maxWidth: Math.round(innerWidth * .9) } }, slot);
       f.iframe.style.width = auto.width ? Math.round(innerWidth * .9) + 'px' : scaled(w.position.width, w.scale || 1);
+      if ((w.actions || []).length && !w.action) f.iframe.classList.add('interactive');   // its own buttons
       f.iframe.style.height = auto.height ? '10px' : cssLen(w.position.height);
       if (!auto.width && !auto.height) slot.classList.remove('pending');
     });

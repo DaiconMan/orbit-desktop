@@ -168,6 +168,8 @@
   // ---------------------------------------------------------------- module kit (shared look, ported from the prototype)
   let visible = true;
   /** Show / hide this widget. A hidden widget in a zone collapses, and the others close up. */
+  /** Ask the host app to run an action this widget's manifest declares in `actions:` (e.g. music next). */
+  ctx.action = (type, value) => post({ type: 'action', action: { type, value } });
   ctx.visible = on => { on = !!on; if (on !== visible) { visible = on; post({ type: 'visible', on }); } };
   const hists = {};
   const ui = Object.freeze({

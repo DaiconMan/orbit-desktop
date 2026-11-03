@@ -78,6 +78,12 @@ GENERIC_SIGNALS = {
     "cloud": ("cloud", "cloud", 120000),
 }
 
+# actions a widget's own buttons may ask the host app to run (manifest `actions:`)
+WIDGET_ACTIONS = {"music"}
+# click actions a user can attach to any widget in the layout editor (run by the host app)
+CLICK_ACTIONS = {"url", "app", "shortcut", "script", "music"}
+# library categories (layout editor), in display order
+CATEGORIES = ["time", "weather", "system", "dev", "life", "media"]
 SETTING_TYPES = {"string", "number", "integer", "boolean", "color", "enum", "length", "list"}
 KINDS = {"widget", "background"}
 ANCHORS = {"top-left", "top-center", "top-right", "center-left", "center", "center-right",
@@ -268,7 +274,7 @@ def load_manifest(folder: str, errors: list) -> dict | None:
         return None
     n0 = len(errors)
     allowed = {"id", "name", "version", "author", "license", "kind", "description", "needs", "settings",
-               "default_size", "assets", "reactions", "unofficial", "homepage", "min_runtime"}
+               "default_size", "assets", "reactions", "unofficial", "homepage", "min_runtime", "category", "i18n", "actions"}
     for k in sorted(set(m) - allowed):
         errors.append(f"{where}: unknown key {k!r}")
     for req in ("id", "name", "version", "author", "license", "kind"):
@@ -298,6 +304,24 @@ def load_manifest(folder: str, errors: list) -> dict | None:
     m["needs"] = needs
     m["settings"] = validate_settings_schema(m.get("settings"), f"{where}: settings", errors)
     m["unofficial"] = bool(m.get("unofficial", False))
+    # library metadata: category + translations {locale: {name, description, settings: {key: label}}}
+    if m.get("category") is not None and m.get("category") not in CATEGORIES:
+        errors.append(f"{where}: category must be one of {', '.join(CATEGORIES)}")
+    i18n = m.get("i18n") or {}
+    if not isinstance(i18n, dict):
+        errors.append(f"{where}: i18n must be a mapping of locale -> {{name, description, settings}}")
+        i18n = {}
+    for loc, tr in i18n.items():
+        if not isinstance(tr, dict) or set(tr) - {"name", "description", "settings", "options"}:
+            errors.append(f"{where}: i18n.{loc} may only hold name, description, settings, options")
+        elif not isinstance(tr.get("settings", {}), dict) or set(tr.get("settings", {})) - set(m["settings"]):
+            errors.append(f"{where}: i18n.{loc}.settings must label existing settings only")
+    m["i18n"] = i18n
+    acts = m.get("actions") or []
+    if not isinstance(acts, list) or set(acts) - WIDGET_ACTIONS:
+        errors.append(f"{where}: actions may only list {sorted(WIDGET_ACTIONS)}")
+        acts = []
+    m["actions"] = acts
 
     ds = m.get("default_size") or {}
     if not isinstance(ds, dict) or set(ds) - {"width", "height"}:
@@ -798,8 +822,8 @@ def validate_layout(cfg, plugins: dict) -> dict:
         if not isinstance(w, dict):
             errors.append(f"{where}: must be a mapping with 'use'")
             continue
-        for k in sorted(set(w) - {"use", "position", "settings", "id", "zone", "page", "column", "dim", "scale", "fill"}):
-            errors.append(f"{where}.{k}: unknown key (use, position, settings, id, zone, page, column, dim, scale, fill)")
+        for k in sorted(set(w) - {"use", "position", "settings", "id", "zone", "page", "column", "dim", "scale", "fill", "action"}):
+            errors.append(f"{where}.{k}: unknown key (use, position, settings, id, zone, page, column, dim, scale, fill, action)")
         use = w.get("use")
         m = plugins.get(use)
         if not m:
@@ -822,6 +846,11 @@ def validate_layout(cfg, plugins: dict) -> dict:
                 _check_value({"type": "integer", "min": 0, "max": zones[zone]["columns"] - 1}, column, f"{where}.column", errors)
         _check_value({"type": "boolean"}, w.get("dim", True), f"{where}.dim", errors)
         _check_value({"type": "boolean"}, w.get("fill", False), f"{where}.fill", errors)
+        action = w.get("action")
+        if action is not None and not (isinstance(action, dict) and action.get("type") in CLICK_ACTIONS
+                                       and isinstance(action.get("value", ""), str) and len(action.get("value", "")) <= 500):
+            errors.append(f"{where}.action: must be {{type: {'|'.join(sorted(CLICK_ACTIONS))}, value: text}}")
+            action = None
         scale = w.get("scale", 1)
         if not _check_value({"type": "number", "min": 0.3, "max": 4}, scale, f"{where}.scale", errors):
             scale = 1
@@ -837,7 +866,8 @@ def validate_layout(cfg, plugins: dict) -> dict:
                         "settings": settings, "position": position, "assets": list(m.get("assets") or []),
                         "zone": zone if zone in zones else None, "page": page if zone else (page if isinstance(page, int) and not isinstance(page, bool) else None),
                         "column": column if zone else 0, "dim": w.get("dim", True) is not False, "scale": scale,
-                        "fill": bool(zone and w.get("fill") is True)})
+                        "fill": bool(zone and w.get("fill") is True), "action": action,
+                        "actions": list(m.get("actions") or [])})
     if background:
         for s in background["needs"]:
             prov = SIGNAL_PROVIDER.get(s)
@@ -852,7 +882,18 @@ def load_layout(path: str, plugins: dict, overlay: dict | None = None) -> dict:
     try:
         cfg = miniyaml.load_file(path)
         if overlay:
-            cfg = dict(cfg if isinstance(cfg, dict) else {}, **overlay)
+            cfg = dict(cfg if isinstance(cfg, dict) else {})
+            for k, v in overlay.items():
+                if k in ("providers", "theme") and isinstance(v, dict):   # GUI toggles merge into layout.yaml's
+                    base = dict(cfg.get(k) or {}) if isinstance(cfg.get(k), dict) else {}
+                    for kk, vv in v.items():
+                        if k == "providers" and isinstance(vv, dict) and isinstance(base.get(kk), dict):
+                            base[kk] = dict(base[kk], **vv)
+                        else:
+                            base[kk] = vv
+                    cfg[k] = base
+                else:
+                    cfg[k] = v
     except FileNotFoundError:
         res = validate_layout({}, plugins)
         res["errors"].insert(0, f"config file not found: {path}")

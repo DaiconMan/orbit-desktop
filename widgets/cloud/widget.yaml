@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Space that cloud-synced folders (OneDrive, Google Drive, Dropbox …) really use on this Mac, and the free disk space."
+category: system
+description: "Space used by cloud-synced folders (OneDrive, Google Drive, Dropbox …) and free disk space."
 needs: [cloud]
 default_size:
   width: 16vw
@@ -13,3 +14,10 @@ settings:
   title:
     type: string
     default: "CLOUD SYNC"
+    description: "Header text"
+i18n:
+  ja:
+    name: "クラウド同期"
+    description: "同期フォルダの使用量と空き容量"
+    settings:
+      title: "見出し"

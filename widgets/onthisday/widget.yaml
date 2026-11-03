@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "今日は何の日: today's observances and three historical events spread across the centuries (from the Wikipedia day article via the onthisday provider). Hidden until today's data has arrived."
+category: life
+description: "Today's observances and three historical events (Wikipedia)."
 needs: [time, onthisday]
 default_size:
   width: auto
@@ -22,3 +23,10 @@ settings:
     min: -5000
     max: 3000
     description: "Skip events before this year"
+i18n:
+  ja:
+    name: "今日は何の日"
+    description: "今日の記念日と歴史上の出来事"
+    settings:
+      max_chars: "出来事の文字数の上限"
+      min_year: "これより前の年の出来事は出さない"

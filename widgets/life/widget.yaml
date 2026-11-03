@@ -4,8 +4,13 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Next public holiday, USD/JPY, the latest notable earthquake and the EEW connection state."
+category: life
+description: "Next public holiday, USD/JPY, the latest notable earthquake and the EEW connection."
 needs: [holidays, fx, quakes, alerts]
 default_size:
   width: 16vw
   height: auto
+i18n:
+  ja:
+    name: "暮らし"
+    description: "祝日・為替・最近の地震"

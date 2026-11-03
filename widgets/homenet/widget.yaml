@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "HOME / AWAY, Tailscale, NAS shares, ping sparklines for the configured targets and the last speed test."
+category: system
+description: "HOME / AWAY, Tailscale, NAS shares, ping sparklines and the last speed test."
 needs: [network]
 default_size:
   width: 25vw
@@ -16,3 +17,9 @@ settings:
     min: 10
     max: 100000
     description: "Speed bars are full at this many Mbps"
+i18n:
+  ja:
+    name: "自宅ネットワーク"
+    description: "在宅 / 外出・Tailscale・NAS・回線速度"
+    settings:
+      speed_full_scale_mbps: "回線速度メーターの最大（Mbps）"

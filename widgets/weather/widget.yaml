@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Current conditions, the next hours and days, rain soon / umbrella, UV and air quality from Open-Meteo (fetched by the host; the widget has no network access)."
+category: weather
+description: "Current weather, the next hours and days, umbrella, UV and air quality (Open-Meteo)."
 needs: [weather]
 default_size:
   width: 21vw
@@ -30,3 +31,12 @@ settings:
     type: boolean
     default: true
     description: "Open-Meteo data is CC BY 4.0 - keep the credit visible unless you credit it elsewhere"
+i18n:
+  ja:
+    name: "天気"
+    description: "今の天気と予報・傘・UV・大気質"
+    settings:
+      hour_step: "時間ごとの予報の間隔（時間）"
+      days: "表示する日数"
+      show_aux: "雨・傘・UV・PM2.5 の行を表示"
+      show_attribution: "データ提供元（Open-Meteo）を表示"

@@ -4,7 +4,8 @@ version: "1.0.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Headlines from the news provider's RSS feed (up to two lines each) with their publication time. Hidden while there are no items."
+category: life
+description: "Latest headlines from the news provider's RSS feed with their times."
 needs: [time, news]
 default_size:
   width: auto
@@ -20,3 +21,10 @@ settings:
     type: string
     default: "NHK"
     description: "Label shown in the header before the update age (match it to the feed configured for the news provider)"
+i18n:
+  ja:
+    name: "ニュース"
+    description: "RSS の最新の見出し"
+    settings:
+      count: "表示する見出しの数"
+      source_label: "配信元の表示名"

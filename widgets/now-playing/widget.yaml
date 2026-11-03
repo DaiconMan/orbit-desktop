@@ -1,11 +1,14 @@
 id: now-playing
 name: Now Playing
-version: "1.1.0"
+version: "1.2.0"
 author: DaiconMan
 license: MIT
 kind: widget
-description: "Artwork, title, artist, album and progress of the track playing in Apple Music or Spotify. Glides in when playback starts and slowly dissolves when it stops."
+category: media
+description: "Artwork, title, artist and progress of the track playing in Music or Spotify."
 needs: [nowPlaying]
+# the buttons ask the host app to control Music / Spotify (prev / play-pause / next / shuffle / repeat / playlists)
+actions: [music]
 default_size:
   width: auto
   height: auto
@@ -13,15 +16,38 @@ settings:
   show_album:
     type: boolean
     default: true
+    description: "Show the album name"
   show_progress:
     type: boolean
     default: true
+    description: "Show the progress bar and times"
   show_source:
     type: boolean
     default: true
+    description: "Show the player (Music / Spotify)"
+  controls:
+    type: boolean
+    default: true
+    description: "Show playback buttons (previous, play / pause, next, shuffle, repeat)"
+  playlists:
+    type: list
+    items: { type: string }
+    default: []
+    description: "Up to 3 favourite playlists (Music playlist names, or spotify: URIs)"
   max_width:
     type: number
     default: 32
     min: 10
     max: 90
     description: "Max text width in host vw"
+i18n:
+  ja:
+    name: "再生中の曲"
+    description: "ジャケット・曲名・アーティスト・再生位置"
+    settings:
+      show_album: "アルバム名を表示"
+      show_progress: "再生位置のバーを表示"
+      show_source: "再生アプリ名を表示"
+      controls: "操作ボタンを表示"
+      playlists: "お気に入りのプレイリスト（最大3つ・1行に1つ）"
+      max_width: "文字の最大幅（vw）"
