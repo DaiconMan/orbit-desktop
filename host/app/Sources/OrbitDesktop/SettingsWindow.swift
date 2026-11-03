@@ -16,6 +16,7 @@ final class SettingsModel: ObservableObject {
     @Published var modules: [(id: String, name: String)] = []
     @Published var status = ""
 
+    var onEditLayout: (() -> Void)?
     var onSaved: (() -> Void)?
     var onNotifyEnabled: (() -> Void)?
     private var layoutModules: [(id: String, name: String)] = []
@@ -111,6 +112,13 @@ struct SettingsView: View {
                 Picker("音楽を止める予想震度", selection: $m.pauseMin) {
                     ForEach(SettingsModel.intensities.dropFirst(), id: \.self) { Text($0) }
                 }.disabled(!m.eewEnabled || !m.eewPause)
+            }
+            Section("配置とサイズ") {
+                HStack {
+                    Text("壁紙の上でドラッグして、位置と大きさを変えられます。")
+                    Spacer()
+                    Button("レイアウトを編集…") { m.onEditLayout?() }
+                }
             }
             Section("壁紙のモジュール") {
                 if m.modules.isEmpty { Text("レイアウトを読み込み中…").foregroundStyle(.secondary) }

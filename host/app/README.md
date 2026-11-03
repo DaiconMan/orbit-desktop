@@ -62,24 +62,23 @@ host/app/build.sh --install    # copy it to ~/Applications and launch it
 
 If you used Plash before, remove the Orbit page from Plash, or quit Plash.
 
-Use the ✦ menu-bar icon to:
-* see the server and EEW connection status
-* reload the wallpaper
-* open 壁紙の設定… (⌘,)
-* show a test 緊急地震速報
-* edit `layout.yaml` (the first time, it copies the example to `~/.config/orbit-desktop/`)
-* open a `?demo` preview in the browser
-* show the server log (`~/Library/Logs/OrbitDesktop/server.log`)
-* restart the server
-* start at login
+The ✦ menu-bar icon offers everything as GUI, with no file editing:
+* **レイアウトを編集…** (⌘E): the HUD layout editor on the desktop itself. Drag zones and widgets to
+  move them, use the corner handle to resize, use the edges to widen or heighten zones, and hide
+  modules. Enter saves, Esc cancels. Changes go to `settings.json` as overrides; `layout.yaml` is
+  never rewritten.
+* **表示する項目・緊急地震速報の設定…** (⌘,): module on/off, page rotation, and EEW options.
+* **壁紙を再読み込み** (⌘R) and **緊急地震速報のテスト表示**.
+* **詳細**: edit `layout.yaml` as text (in a text editor, not Xcode), config warnings, browser preview,
+  server log (`~/Library/Logs/OrbitDesktop/server.log`), and restart the server.
+* **ログイン時に起動**.
+* The first lines show the server and EEW connection status.
 
 ### Keeping permissions across rebuilds
-macOS ties permission grants to the code signature. The default ad-hoc signature changes with
-every build, so calendar and audio grants reset after each rebuild. To keep them, create a
-self-signed certificate once:
-1. Open Keychain Access and choose Certificate Assistant › Create a Certificate…
-2. Name it `Orbit Desktop Dev`, with identity type Self Signed Root and certificate type Code Signing.
-3. Build with `ORBIT_SIGN_IDENTITY="Orbit Desktop Dev" host/app/build.sh`.
+`build.sh` signs with a local identity named "Orbit Desktop Dev" when one exists. Create it once with
+`host/app/make-signing-cert.sh` (no Keychain Access, no trust settings needed). Only its hash goes into the
+designated requirement, so calendar, audio and notification permissions survive rebuilds. Without it the
+build is ad-hoc signed, and the permissions reset after every rebuild.
 
 ### settings.json (`~/.config/orbit-desktop/settings.json`)
 The 壁紙の設定 window edits it. It is created on the first save, and unknown keys are kept. The

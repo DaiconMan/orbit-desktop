@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var eewState = EEWProvider.Snapshot(error: "starting")
     private var eewLine = NSMenuItem(title: "緊急地震速報: 起動中…", action: nil, keyEquivalent: "")
     private var statusItem: NSStatusItem!
-    private var statusLine = NSMenuItem(title: "Starting…", action: nil, keyEquivalent: "")
+    private var statusLine = NSMenuItem(title: "起動中…", action: nil, keyEquivalent: "")
     private var configVersion = ""
     private var configPath = ""
     private var configErrors = 0
@@ -53,6 +53,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         eew.onNotify = { [weak self] title, body in self?.notifier.post(title: title, body: body) }
         settingsWindow.model.onNotifyEnabled = { [weak self] in self?.notifier.requestAuthorization() }
+        settingsWindow.model.onEditLayout = { [weak self] in
+            NSApp.keyWindow?.close()
+            self?.desktop.setEditing(true)
+        }
         settingsWindow.model.onSaved = { [weak self] in
             // the server re-reads settings.json (wallpaper.hidden / page_seconds) on its own
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.desktop.reload() }
@@ -135,20 +139,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         eewLine.isEnabled = false
         m.addItem(eewLine)
         m.addItem(.separator())
-        m.addItem(item("Reload Wallpaper", #selector(reload), "r"))
-        m.addItem(item("壁紙の設定…", #selector(openSettings), ","))
-        editItem = item("レイアウトを編集（HUD）", #selector(toggleEditLayout), "e")
+        // everyday actions are GUI-only; editing files lives under 詳細
+        editItem = item("レイアウトを編集…", #selector(toggleEditLayout), "e")
         m.addItem(editItem)
-        m.addItem(item("Edit layout.yaml…", #selector(editLayout), ""))
-        m.addItem(item("設定の警告を表示…", #selector(showWarnings), ""))
-        m.addItem(item("Open Preview in Browser", #selector(openPreview), ""))
+        m.addItem(item("表示する項目・緊急地震速報の設定…", #selector(openSettings), ","))
+        m.addItem(item("壁紙を再読み込み", #selector(reload), "r"))
         m.addItem(item("緊急地震速報のテスト表示", #selector(testEEW), ""))
         m.addItem(.separator())
-        m.addItem(item("Show Server Log", #selector(showLog), ""))
-        m.addItem(item("Restart Server", #selector(restartServer), ""))
-        m.addItem(item("Start at Login", #selector(toggleLogin), ""))
+        let adv = NSMenu()
+        for (t, sel) in [("layout.yaml をテキストで編集…", #selector(editLayout)), ("設定の警告を表示…", #selector(showWarnings)),
+                         ("ブラウザでプレビュー", #selector(openPreview)), ("サーバのログを表示", #selector(showLog)),
+                         ("サーバを再起動", #selector(restartServer))] {
+            adv.addItem(item(t, sel, ""))
+        }
+        let advItem = NSMenuItem(title: "詳細", action: nil, keyEquivalent: "")
+        advItem.submenu = adv
+        m.addItem(advItem)
+        m.addItem(item("ログイン時に起動", #selector(toggleLogin), ""))
         m.addItem(.separator())
-        m.addItem(item("Quit Orbit Desktop", #selector(quit), "q"))
+        m.addItem(item("Orbit Desktop を終了", #selector(quit), "q"))
         statusItem.menu = m
     }
 
@@ -167,9 +176,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func refreshStatus() {
         var s: String
         switch server.state {
-        case .stopped: s = "Server stopped"
-        case .starting: s = "Starting server…"
-        case .running: s = "Running on 127.0.0.1:\(Settings.port)"
+        case .stopped: s = "サーバ停止中"
+        case .starting: s = "サーバ起動中…"
+        case .running: s = "動作中（127.0.0.1:\(Settings.port)）"
         case .failed(let why): s = "⚠︎ " + why
         }
         if server.state == .running {
