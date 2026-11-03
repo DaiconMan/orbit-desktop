@@ -97,3 +97,14 @@ button.fold { font: 16px var(--font); width: 26px; height: 26px; padding: 0; bor
 .ed-lib.closed > :not(.ed-tab), .ed-insp.closed > :not(.ed-tab) { display: none !important; }
 .ed-lib.closed > .ed-tab, .ed-insp.closed > .ed-tab { display: block; font: 600 12px var(--font); padding: 9px 13px; border-radius: 9px; cursor: pointer;
   background: var(--ed-bg); border: 1px solid rgba(120,200,255,.45); color: #cfe6ff; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+
+/* in-page confirmation */
+.ed-ask { position: fixed; z-index: 2100; left: 50%; top: 38%; transform: translate(-50%, -50%); width: 380px; box-sizing: border-box; padding: 18px;
+  background: var(--ed-bg); border: 1px solid rgba(120,200,255,.45); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  font: 500 13px/1.6 var(--font); color: var(--ed-ink); }
+.ed-ask p { margin: 0 0 14px; }
+.ed-ask .row { display: flex; justify-content: flex-end; gap: 8px; }
+.ed-ask button { font: inherit; padding: 6px 14px; border-radius: 7px; border: 1px solid #2f3858; background: #1a2036; color: var(--ed-ink); cursor: pointer; }
+.ed-ask button:empty { display: none; }
+.ed-ask button.primary { background: #2a6fd6; border-color: #5b9dff; color: #fff; font-weight: 700; }
+.ed-tabs button.del { color: #ffb3bd; border-color: #5a2a34; background: #2a1219; }

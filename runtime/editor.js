@@ -55,7 +55,11 @@
   /* ---------------------------------------------------------------- model + undo */
   const frameOf = idx => O().frames.find(f => f.kind === 'widget' && f.idx === idx && !f.dead);
   const state = () => JSON.stringify({ arr: E.arr, providers: E.providers, theme: E.theme, pageSeconds: E.pageSeconds });
-  function remember() { E.undo.push(state()); if (E.undo.length > 100) E.undo.shift(); E.redo = []; drawBar(); }
+  function remember() { E.undo.push(state()); if (E.undo.length > 100) E.undo.shift(); E.redo = []; drawBar(); saveDraftSoon(); }
+  // unsaved work survives a crash / restart: the host app keeps a draft, offered again on the next edit
+  let draftTimer = null;
+  const saveDraftSoon = () => { clearTimeout(draftTimer); draftTimer = setTimeout(() => toHost({ type: 'saveDraft', draft: { state: JSON.parse(state()), at: Date.now() } }), 1500); };
+  const dropDraft = () => { clearTimeout(draftTimer); toHost({ type: 'saveDraft', draft: null }); };
   function restore(s) { const o = JSON.parse(s); E.arr = o.arr; E.providers = o.providers; E.theme = o.theme; E.pageSeconds = o.pageSeconds; E.sel = null; render(); }
   function undo() { if (!E.undo.length) return; E.redo.push(state()); restore(E.undo.pop()); }
   function redo() { if (!E.redo.length) return; E.undo.push(state()); restore(E.redo.pop()); }
@@ -424,9 +428,18 @@
     const s2 = section('そのほか');
     s2.appendChild($c('p', 'ed-note', '緊急地震速報やログイン時の起動は、メニューバーの ✦ →「設定…」にあります。'));
     const reset = $c('button', null, '初期配置に戻す');
-    reset.onclick = () => { if (confirm('最初の配置（layout.yaml）に戻しますか？ ここで変えた配置は消えます。')) toHost({ type: 'saveArrangement', arrangement: null, hidden: [] }) || location.reload(); };
+    reset.onclick = () => ask('最初の配置（layout.yaml）に戻しますか？ ここで変えた配置は消えます。', '初期配置に戻す', 'やめる',
+      () => { dropDraft(); if (!toHost({ type: 'saveArrangement', arrangement: null, hidden: [] })) location.reload(); });
     s2.appendChild(reset);
     P.appendChild(s2);
+  }
+
+  // in-page dialog: window.confirm() does nothing in the host app's web view
+  function ask(text, yes, no, onYes, onNo) {
+    const d = $c('div', 'ed-ask'), p = $c('p', null, text), row = $c('div', 'row');
+    const b1 = $c('button', 'primary', yes), b2 = $c('button', null, no);
+    b1.onclick = () => { d.remove(); if (onYes) onYes(); }; b2.onclick = () => { d.remove(); if (onNo) onNo(); };
+    row.append(b2, b1); d.append(p, row); document.body.appendChild(d);
   }
 
   /* ---------------------------------------------------------------- bottom bar */
@@ -436,6 +449,15 @@
     const tab = (label, p, title) => { const b = $c('button', E.page === p ? 'on' : '', label); b.title = title; b.onclick = () => { E.page = p; E.sel = null; O().showFreePage(p); drawAll(); }; t.appendChild(b); };
     tab('常に表示', null, 'いつも表示するウィジェット');
     for (const p of pagesInUse()) tab(String(p + 1), p, `ページ ${p + 1}：${E.pageSeconds || O().cfg.pageSeconds || 30} 秒ごとに順番に表示`);
+    if (E.page != null) {                // remove the current page (its widgets go back to the library)
+      const del = $c('button', 'del', 'このページを削除'); del.title = 'このページのウィジェットを壁紙から外します';
+      del.onclick = () => {
+        const n = E.arr.filter(w => w.page === E.page).length;
+        const go = () => { remember(); E.arr = E.arr.filter(w => w.page !== E.page); E.extraPages.delete(E.page); E.page = null; E.sel = null; render(); };
+        if (n) ask(`ページ ${E.page + 1} の ${n} 個のウィジェットを壁紙から外しますか？（ライブラリからいつでも戻せます）`, 'ページを削除', 'やめる', go); else go();
+      };
+      t.appendChild(del);
+    }
     const add = $c('button', 'add', '＋'); add.title = 'ページを足す（順番に切り替わって表示されます）';
     add.onclick = () => { const ps = pagesInUse(); const n = ps.length ? ps[ps.length - 1] + 1 : 0; E.extraPages.add(n); E.page = n; E.sel = null; O().showFreePage(n); drawAll(); };
     t.appendChild(add);
@@ -451,7 +473,8 @@
     const msg = { type: 'saveArrangement', arrangement: serialize(), hidden: [], providers: Object.fromEntries(Object.entries(E.providers).map(([k, v]) => [k, { enabled: v }])) };
     if ('night_dim' in E.theme) msg.theme = { night_dim: E.theme.night_dim };
     if (E.pageSeconds) msg.pageSeconds = E.pageSeconds;
-    if (!toHost(msg)) alert('保存は Orbit Desktop.app の中でのみできます');
+    dropDraft();
+    if (!toHost(msg)) ask('保存は Orbit Desktop.app の中でのみできます。', '閉じる', '');
   }
   function buildBar() {
     const bar = $c('div', 'ed-bar');
@@ -461,9 +484,13 @@
     const btn = (label, fn, cls, title) => { const b = $c('button', cls || '', label); b.onclick = fn; if (title) b.title = title; bar.appendChild(b); return b; };
     E.undoBtn = btn('元に戻す', undo, '', '⌘Z'); E.redoBtn = btn('やり直す', redo, '', '⇧⌘Z');
     btn('プレビュー', () => setPreview(!document.body.classList.contains('ed-preview')), '', 'Space を押している間も');
-    btn('キャンセル', () => { if (!toHost({ type: 'exitEdit' })) toggle(false); }, '', 'Esc');
+    btn('キャンセル', cancel, '', 'Esc');
     btn('完了', save, 'primary', 'Enter');
     return bar;
+  }
+  function cancel() {
+    const leave = () => { dropDraft(); if (!toHost({ type: 'exitEdit' })) toggle(false); };
+    if (E.undo.length) ask('変更を保存せずに編集を終わりますか？', '保存せずに終わる', '編集を続ける', leave); else leave();
   }
   function setPreview(on) { document.body.classList.toggle('ed-preview', on); if (!on) drawBoxes(); }
 
@@ -486,6 +513,12 @@
     document.body.append(E.layer, E.lib, E.insp, buildBar());
     render();
     E.timer = setInterval(() => { if (!document.body.classList.contains('ed-preview')) drawBoxes(); }, 800);
+    fetch('/api/editor-draft', { cache: 'no-store' }).then(r => r.json()).then(d => {
+      if (!d || !d.state || !d.state.arr) return;
+      const t = new Date(d.at || Date.now()), hm = `${t.getMonth() + 1}/${t.getDate()} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+      ask(`保存していない編集が残っています（${hm}）。続きから再開しますか？`, '続きから再開', '破棄する',
+        () => { remember(); restore(JSON.stringify(d.state)); }, dropDraft);
+    }).catch(() => {});
   }
   addEventListener('keydown', e => {
     if (!E.active) return;
@@ -493,7 +526,7 @@
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
     if (typing) return;
     if (e.code === 'Space' && !e.repeat) { setPreview(true); e.preventDefault(); }
-    else if (e.key === 'Escape') { if (E.sel != null) select(null); else if (!toHost({ type: 'exitEdit' })) toggle(false); }
+    else if (e.key === 'Escape') { if (document.querySelector('.ed-ask')) return; if (E.sel != null) select(null); else cancel(); }
     else if (e.key === 'Enter') save();
     else if ((e.key === 'Backspace' || e.key === 'Delete') && E.sel != null) { remember(); E.arr.splice(E.sel, 1); E.sel = null; render(); }
     else if (E.sel != null && e.key.startsWith('Arrow')) {

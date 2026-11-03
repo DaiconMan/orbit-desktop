@@ -153,9 +153,16 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
 
     // MARK: HUD layout editor
     /// Edit mode: windows float above other windows, take the mouse and the keyboard, and the page shows the editor.
+    /// While the editor is open: a marker file (build.sh --install refuses to restart the app under it).
+    static let editingMarker = Paths.hostDir.appendingPathComponent("editing")
+    /// The editor's unsaved draft, so a crash or restart doesn't lose work (offered again on the next edit).
+    static let draftURL = Paths.hostDir.appendingPathComponent("editor-draft.json")
+
     func setEditing(_ on: Bool) {
         guard on != editing else { return }
         editing = on
+        if on { FileManager.default.createFile(atPath: Self.editingMarker.path, contents: Data()) }
+        else { try? FileManager.default.removeItem(at: Self.editingMarker) }
         for w in windows {
             w.ignoresMouseEvents = !on
             (w as? DesktopWindow)?.allowKey = on
@@ -256,6 +263,12 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
                     onPluginErrorsChanged?()
                 }
                 NSLog("[orbit] widget error: \(m)")
+            }
+        case "saveDraft":
+            if let d = body["draft"], JSONSerialization.isValidJSONObject(d), let data = try? JSONSerialization.data(withJSONObject: d) {
+                if data.count < 2_000_000 { try? data.write(to: Self.draftURL, options: .atomic) }
+            } else {
+                try? FileManager.default.removeItem(at: Self.draftURL)   // null = discard
             }
         case "exitEdit":
             setEditing(false)

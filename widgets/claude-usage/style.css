@@ -1,9 +1,2 @@
-.cu { font: 500 calc(1.35 * var(--vh)) var(--mono); letter-spacing: .04em; }
-.row { display: grid; grid-template-columns: 6.5em 1fr 7.5em; align-items: center; gap: 1em; height: calc(3.1 * var(--vh)); }
-.row.sub { height: calc(2.2 * var(--vh)); }
-.row .k { opacity: .5; white-space: nowrap; }
-.row.sub .k { grid-column: 2 / 3; }
-.row .v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.row .v small { opacity: .5; }
-.meter { height: 3px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
-.meter i { display: block; height: 100%; width: 0; transition: width 1s ease; }
+.m-cu .row { grid-template-columns: 6em minmax(0, 1fr) 6.5em; }
+.m-cu .sub { margin: calc(var(--vh) * -.4) 0 calc(var(--vh) * .4) calc(6em + 1em); font-size: var(--t-xs); opacity: .42; letter-spacing: .06em; }

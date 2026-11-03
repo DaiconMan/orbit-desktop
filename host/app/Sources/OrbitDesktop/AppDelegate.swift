@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ note: Notification) {
         Paths.ensureDirs()
+        try? FileManager.default.removeItem(at: DesktopWindows.editingMarker)
         AppSettings.migrateIfNeeded()
         setUpMenu()
         system.start()

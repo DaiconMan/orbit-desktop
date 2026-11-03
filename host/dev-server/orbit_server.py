@@ -379,6 +379,15 @@ def make_handler(state: State, prov: Providers, port: int):
                               "hostApp": prov.host_dir is not None})
             if path == "/api/config":
                 return self.json(state.public_config())
+            if path == "/api/editor-draft":       # the layout editor's unsaved draft (written by the host app)
+                body = None
+                if prov.host_dir:
+                    try:
+                        with open(os.path.join(prov.host_dir, "editor-draft.json"), "rb") as f:
+                            body = f.read(2_000_000)
+                    except OSError:
+                        pass
+                return self.send(body or b"null", "application/json; charset=utf-8")
             if path == "/api/config/version":
                 return self.json({"version": state.version})
             if path == "/api/signals/system":

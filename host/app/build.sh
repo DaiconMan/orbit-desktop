@@ -51,6 +51,13 @@ echo "built: $APP (signed: $IDENTITY)"
 
 if [ "${1:-}" = "--install" ]; then
   DEST="$HOME/Applications/Orbit Desktop.app"
+  # never restart the app under someone who is customising the wallpaper: unsaved edits would be lost
+  # (the app keeps this marker while its layout editor is open; ORBIT_FORCE_INSTALL=1 overrides)
+  MARK="$HOME/Library/Caches/orbit-desktop/host/editing"
+  if [ -f "$MARK" ] && pgrep -f "Orbit Desktop.app/Contents/MacOS/OrbitDesktop" >/dev/null && [ -z "${ORBIT_FORCE_INSTALL:-}" ]; then
+    echo "not installed: the layout editor is open (finish or cancel it first; ORBIT_FORCE_INSTALL=1 to override)" >&2
+    exit 3
+  fi
   osascript -e 'tell application id "io.github.daiconman.orbit-desktop" to quit' 2>/dev/null || true
   sleep 1
   mkdir -p "$HOME/Applications"
