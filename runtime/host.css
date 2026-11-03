@@ -37,35 +37,3 @@ body.alerting #widgets .slot:not(.nodim) { opacity: .18; transition: opacity .8s
 .edge.go { animation: edgeonce 3.2s ease-out 1; }
 @keyframes edgeonce { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
 
-/* HUD layout editor (entered from the host app menu) */
-body.editing #widgets .slot.ed-hidden { opacity: .15 !important; }
-#editor { position: fixed; inset: 0; z-index: 2000; cursor: default; font: 500 12px/1.4 var(--mono); color: #fff; user-select: none; -webkit-user-select: none; }
-#editor.grid { background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px),
-  linear-gradient(90deg, transparent calc(50% - 1px), rgba(120,200,255,.18) calc(50% - 1px), rgba(120,200,255,.18) 50%, transparent 50%);
-  background-size: 5vw 5vh, 5vw 5vh, 100% 100%; }
-.ed-bar { position: fixed; top: 52vh; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px;
-  background: rgba(14,18,30,.92); border: 1px solid rgba(120,200,255,.35); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.5); z-index: 3; white-space: nowrap; }
-.ed-bar b { letter-spacing: .2em; color: rgb(120,200,255); }
-.ed-bar span { opacity: .6; }
-.ed-bar button { font: inherit; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
-.ed-bar button:hover { background: rgba(255,255,255,.16); }
-.ed-bar button.primary { background: rgb(40,120,220); border-color: rgb(90,160,255); }
-.ed-tray { position: fixed; top: calc(52vh + 48px); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 3; }
-.ed-tray span { opacity: .6; } .ed-tray .chip { opacity: 1; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,.1); cursor: pointer; }
-.ed-box { position: fixed; box-sizing: border-box; border: 1px dashed rgba(120,200,255,.7); background: rgba(60,140,255,.07); border-radius: 4px; cursor: move; }
-.ed-box.zone { border-color: rgba(255,200,120,.75); background: rgba(255,170,60,.05); }
-.ed-box.sel { border-style: solid; box-shadow: 0 0 0 1px rgba(120,200,255,.5), 0 0 24px rgba(60,140,255,.25); }
-.ed-box.hidden { opacity: .45; border-style: dotted; }
-.ed-head { position: absolute; left: 0; bottom: 100%; margin-bottom: 3px; display: flex; align-items: center; gap: 8px; white-space: nowrap;
-  padding: 2px 6px; background: rgba(14,18,30,.85); border-radius: 4px; }
-.ed-head b { font-weight: 600; letter-spacing: .08em; }
-.ed-size { opacity: .6; }
-.ed-tools i { font-style: normal; margin-left: 6px; padding: 0 6px; border-radius: 4px; background: rgba(255,255,255,.1); cursor: pointer; }
-.ed-tools i:hover { background: rgba(255,255,255,.25); }
-.ed-mods { position: absolute; left: 6px; top: 6px; right: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
-.ed-mods span { padding: 1px 7px; border-radius: 99px; background: rgba(14,18,30,.8); border: 1px solid rgba(255,255,255,.2); cursor: pointer; }
-.ed-mods span.off { text-decoration: line-through; opacity: .5; }
-.ed-h { position: absolute; background: rgb(120,200,255); border-radius: 2px; }
-.ed-h-scale { right: -6px; bottom: -6px; width: 12px; height: 12px; cursor: nwse-resize; }
-.ed-h-width { right: -3px; top: 30%; bottom: 30%; width: 6px; cursor: ew-resize; background: rgba(255,200,120,.9); }
-.ed-h-height { bottom: -3px; left: 30%; right: 30%; height: 6px; cursor: ns-resize; background: rgba(255,200,120,.9); }

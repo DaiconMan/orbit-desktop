@@ -163,6 +163,9 @@ it on top of `layout.yaml`:
 * `wallpaper.hidden`: plugin ids to leave out
 * `wallpaper.page_seconds`: replaces every zone's `rotate_seconds`
 * `eew`: Earthquake Early Warning options, used only by the host app
+* `arrangement`: what the **layout editor** (menu → レイアウトを編集…) saved, i.e. `zones` and `widgets` in the
+  same format as in `layout.yaml`. When present, they replace layout.yaml's `zones` and `widgets`. Theme,
+  background and providers still come from layout.yaml. 「初期配置に戻す」 deletes it.
 
 ```json
 { "wallpaper": { "hidden": ["news"], "page_seconds": 30 },

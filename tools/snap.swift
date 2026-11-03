@@ -1,5 +1,6 @@
 // snap: render a URL in an off-screen WKWebView (same engine as the host app) and save a PNG.
 //   swift tools/snap.swift <url> <out.png> [WIDTHxHEIGHT] [wait-seconds] [js-expression-to-print]
+//   (6th argument: seconds to wait after the JS, e.g. to let re-rendered frames load)
 // e.g. swift tools/snap.swift "http://127.0.0.1:47911/?page=2" /tmp/p2.png 1710x1112 8
 // If `swift` fails with an Xcode license error, prefix DEVELOPER_DIR=/Library/Developer/CommandLineTools.
 import AppKit
@@ -37,6 +38,11 @@ DispatchQueue.main.asyncAfter(deadline: .now() + wait) {
     if let js {
         wv.evaluateJavaScript(js) { r, e in print("js:", r ?? "nil", e.map { "\($0)" } ?? "") }
     }
+    // optional 6th argument: seconds to wait after the JS before taking the picture
+    let after = args.count > 6 ? Double(args[6]) ?? 0 : 0
+    DispatchQueue.main.asyncAfter(deadline: .now() + after) { shoot() }
+}
+func shoot() {
     let c = WKSnapshotConfiguration()
     c.rect = NSRect(origin: .zero, size: size)
     wv.takeSnapshot(with: c) { img, err in

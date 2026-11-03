@@ -1,0 +1,64 @@
+/* Orbit Desktop layout editor (see editor.js). Quiet chrome so the real widgets stay readable. */
+.ed-layer { position: fixed; inset: 0; z-index: 2000; font: 500 11px/1.4 var(--mono); color: #fff; user-select: none; -webkit-user-select: none; }
+.ed-layer.grid { background-image: linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px),
+  linear-gradient(90deg, transparent calc(50% - 1px), rgba(120,200,255,.14) calc(50% - 1px), rgba(120,200,255,.14) 50%, transparent 50%);
+  background-size: 5vw 5vh, 5vw 5vh, 100% 100%; }
+body.editing #widgets .slot.ed-hidden { opacity: .18 !important; }
+body.editing #widgets .slot.empty { display: block; min-height: 30px; }   /* keep empty widgets grabbable */
+body.ed-preview .ed-layer, body.ed-preview .ed-palette { display: none; }
+
+.ed-box { position: fixed; box-sizing: border-box; border-radius: 3px; cursor: grab; }
+.ed-box.zone { border: 1px dashed rgba(255,200,120,.45); }
+.ed-box.widget { border: 1px solid rgba(120,200,255,.28); }
+.ed-box.widget:hover, .ed-box.widget.sel { border-color: rgba(120,200,255,.9); background: rgba(60,140,255,.06); }
+.ed-box.widget.hidden { border-style: dotted; }
+.ed-tag { position: absolute; left: -1px; bottom: 100%; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 2px 6px; background: rgba(40,28,10,.9); border: 1px solid rgba(255,200,120,.4); border-radius: 4px; color: #ffd9a8; }
+.ed-tag i, .ed-wtag i { font-style: normal; padding: 0 5px; border-radius: 3px; background: rgba(255,255,255,.1); cursor: pointer; }
+.ed-tag i:hover, .ed-wtag i:hover { background: rgba(255,255,255,.28); }
+.ed-tag .pct { opacity: .6; }
+.ed-wtag { position: absolute; right: 2px; top: 2px; display: none; align-items: center; gap: 4px; padding: 1px 4px;
+  background: rgba(10,16,30,.88); border-radius: 3px; white-space: nowrap; }
+.ed-box.widget:hover .ed-wtag, .ed-box.widget.sel .ed-wtag, .ed-box.widget.hidden .ed-wtag { display: flex; }
+.ed-wtag b { font-weight: 600; margin-right: 2px; }
+.ed-h { position: absolute; border-radius: 2px; }
+.ed-h.scale { right: -5px; bottom: -5px; width: 10px; height: 10px; background: rgb(120,200,255); cursor: nwse-resize; }
+.ed-box.zone > .ed-h.scale { background: rgb(255,200,120); }
+.ed-h.width { right: -3px; top: 35%; bottom: 35%; width: 5px; background: rgba(255,200,120,.85); cursor: ew-resize; }
+.ed-h.height { bottom: -3px; left: 35%; right: 35%; height: 5px; background: rgba(255,200,120,.85); cursor: ns-resize; }
+.ed-ghost { position: fixed; z-index: 10; pointer-events: none; padding: 4px 10px; border-radius: 99px; background: rgba(40,120,220,.92); color: #fff; white-space: nowrap; }
+.ed-ghost::after { content: ' → ' attr(data-hint); opacity: .75; }
+.ed-ghost.remove { background: rgba(200,50,60,.92); }
+.ed-line { position: fixed; height: 3px; border-radius: 2px; background: rgb(120,200,255); box-shadow: 0 0 10px rgb(120,200,255); pointer-events: none; display: none; }
+
+.ed-bar { position: fixed; z-index: 2003; top: 8px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px;
+  background: rgba(14,18,30,.94); border: 1px solid rgba(120,200,255,.35); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  font: 500 12px var(--mono); color: #fff; white-space: nowrap; }
+.ed-bar b { letter-spacing: .15em; color: rgb(120,200,255); margin-right: 6px; }
+.ed-bar button, .ed-palette button { font: inherit; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 6px; padding: 4px 11px; cursor: pointer; }
+.ed-bar button:hover, .ed-palette button:hover { background: rgba(255,255,255,.18); }
+.ed-bar button.primary { background: rgb(40,120,220); border-color: rgb(90,160,255); }
+body.ed-preview .ed-bar { opacity: .35; }
+
+.ed-palette { position: fixed; z-index: 2002; left: 10px; top: 60px; bottom: 10px; width: 250px; display: flex; flex-direction: column;
+  background: rgba(14,18,30,.94); border: 1px solid rgba(120,200,255,.3); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  font: 500 12px/1.4 var(--font); color: #fff; user-select: none; -webkit-user-select: none; overflow: hidden; }
+.ed-phead { padding: 10px 12px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.ed-phead b { display: block; letter-spacing: .1em; color: rgb(120,200,255); }
+.ed-phead span { display: block; margin-top: 3px; font-size: 10.5px; opacity: .55; }
+.ed-plist { overflow-y: auto; padding: 6px; }
+.ed-pitem { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: grab; }
+.ed-pitem:hover { background: rgba(255,255,255,.07); }
+.ed-ptext { flex: 1; min-width: 0; }
+.ed-ptext b { display: block; font-weight: 600; }
+.ed-ptext small { display: block; opacity: .55; font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ed-ptext em { display: block; font-style: normal; font-size: 10px; color: #ffcf8a; opacity: .85; }
+.ed-pitem button { padding: 2px 9px; }
+.ed-palette.closed { top: auto; bottom: 50%; width: auto; height: auto; background: none; border: 0; box-shadow: none; overflow: visible; }
+.ed-palette.closed > :not(.ed-ptab) { display: none; }
+.ed-ptab { display: none; }
+.ed-palette.closed .ed-ptab { display: block; padding: 8px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+  background: rgba(14,18,30,.94); border: 1px solid rgba(120,200,255,.45); color: rgb(160,215,255); box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+.ed-palette.drop .ed-ptab, .ed-palette.drop { border-color: rgba(255,90,100,.9); box-shadow: 0 0 20px rgba(255,80,90,.5); }
+.ed-palette.drop .ed-ptab::after { content: ' ← ここで削除'; color: #ff9aa2; }
+.ed-phead button { float: right; padding: 1px 8px; font-size: 11px; }

@@ -44,6 +44,8 @@ RUNTIME_FILES = {  # url path -> (file, content type)
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/runtime/host.js": ("host.js", "text/javascript; charset=utf-8"),
     "/runtime/host.css": ("host.css", "text/css; charset=utf-8"),
+    "/runtime/editor.js": ("editor.js", "text/javascript; charset=utf-8"),
+    "/runtime/editor.css": ("editor.css", "text/css; charset=utf-8"),
 }
 SDK_JS = os.path.join(RUNTIME_DIR, "sdk", "orbit-sdk.js")
 SDK_CSS = os.path.join(RUNTIME_DIR, "sdk", "orbit-sdk.css")
@@ -83,7 +85,12 @@ class State:
                 return
             errors, warnings = [], []
             plugins = oc.discover_plugins(errors, warnings, include_user=self.include_user)
-            res = oc.load_layout(self.config_path, plugins)
+            st = read_user_settings(warnings)
+            arr = st.get("arrangement") if isinstance(st.get("arrangement"), dict) else None
+            overlay = {k: arr[k] for k in ("zones", "widgets") if arr and k in arr} or None
+            res = oc.load_layout(self.config_path, plugins, overlay)
+            res["arranged"] = bool(overlay)
+            res["catalog"] = catalog(plugins, res["providers"])
             # every module of the layout, before settings.json hides some (for the settings window)
             seen = set()
             res["modules"] = [{"use": w["use"], "name": w["name"]} for w in res["widgets"]
@@ -99,7 +106,8 @@ class State:
                 print(f"[orbit] warning: {w}", flush=True)
 
     def active_plugin_ids(self):
-        ids = {w["use"] for w in self.resolved.get("widgets", [])}
+        # every installed widget may be framed: the layout editor previews widgets before they are added
+        ids = {pid for pid, m in self.plugins.items() if m["kind"] == "widget"}
         bg = self.resolved.get("background")
         if bg and not bg["builtin"]:
             ids.add(bg["use"])
@@ -120,6 +128,9 @@ class State:
             "modules": r.get("modules", []),
             "hidden": r.get("hidden", []),
             "layoutOverrides": r.get("layoutOverrides", {}),
+            "allWidgets": r.get("allWidgets", r["widgets"]),
+            "catalog": r.get("catalog", []),
+            "arranged": r.get("arranged", False),
             "signals": signals,
             "providers": {"weather": prov["weather"]["enabled"], "nowPlaying": prov["now_playing"]["enabled"],
                           "claudeUsage": prov["claude_usage"]["enabled"], "speedtest": prov["speedtest"]["enabled"],
@@ -170,6 +181,34 @@ def _clean_override(o):
     return out
 
 
+def read_user_settings(warnings):
+    try:
+        with open(oc.USER_SETTINGS, "r", encoding="utf-8") as f:
+            st = json.load(f)
+        return st if isinstance(st, dict) else {}
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as e:
+        warnings.append(f"settings.json ignored: {e}")
+        return {}
+
+
+def catalog(plugins, providers):
+    """Installed widgets for the layout editor's palette."""
+    out = []
+    for pid, m in sorted(plugins.items(), key=lambda kv: (kv[1].get("name") or kv[0]).lower()):
+        if m["kind"] != "widget":
+            continue
+        off = sorted({oc.SIGNAL_PROVIDER[s] for s in m["needs"] if oc.SIGNAL_PROVIDER.get(s)
+                      and not providers[oc.SIGNAL_PROVIDER[s]]["enabled"]})
+        out.append({"id": pid, "name": m.get("name") or pid, "description": m.get("description") or "",
+                    "needs": list(m["needs"]), "assets": list(m.get("assets") or []),
+                    "settings": oc.apply_settings(m.get("settings"), None, "", [], []),
+                    "defaultSize": m.get("default_size") or {}, "unofficial": m.get("unofficial", False),
+                    "providersOff": off})
+    return out
+
+
 def apply_user_settings(res, warnings):
     """Overlay ~/.config/orbit-desktop/settings.json (written by the host app):
     * wallpaper.hidden: plugin ids to leave out
@@ -178,11 +217,10 @@ def apply_user_settings(res, warnings):
     The base values from layout.yaml are kept as `base` so the editor can reset an element."""
     for z in res.get("zones", {}).values():
         z.setdefault("scale", 1)
-        z["base"] = {k: z.get(k) for k in ("anchor", "x", "y", "width", "height")}
-        z["base"]["scale"] = 1
+        z["base"] = {k: z.get(k) for k in ("anchor", "x", "y", "width", "height", "scale")}
     for w in res["widgets"]:
-        w["scale"] = 1
-        w["base"] = dict(w["position"], scale=1)
+        w.setdefault("scale", 1)
+        w["base"] = dict(w["position"], scale=w["scale"])
     res["hidden"], res["layoutOverrides"] = [], {}
     try:
         with open(oc.USER_SETTINGS, "r", encoding="utf-8") as f:
@@ -194,7 +232,8 @@ def apply_user_settings(res, warnings):
         return
     if not isinstance(st, dict):
         return
-    lo = st.get("layout") if isinstance(st.get("layout"), dict) else {}
+    # legacy position overrides (first editor version); a GUI arrangement supersedes them
+    lo = st.get("layout") if isinstance(st.get("layout"), dict) and not res.get("arranged") else {}
     for key, o in lo.items():
         o = _clean_override(o)
         if not o or not isinstance(key, str):
@@ -213,6 +252,7 @@ def apply_user_settings(res, warnings):
                     hit = True
             if hit:
                 res["layoutOverrides"][key] = o
+    res["allWidgets"] = list(res["widgets"])     # before hiding: the editor keeps hidden widgets in the arrangement
     wp = st.get("wallpaper")
     if not isinstance(wp, dict):
         return

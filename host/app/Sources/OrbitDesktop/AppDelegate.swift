@@ -29,6 +29,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         startEEW()
         server.onStateChange = { [weak self] st in self?.serverStateChanged(st) }
         desktop.onSaveLayout = { [weak self] layout, hidden in self?.saveLayout(layout, hidden: hidden) }
+        desktop.onSaveArrangement = { arr, hidden in
+            // the GUI arrangement replaces layout.yaml's zones + widgets; nil = back to layout.yaml
+            var raw = AppSettings.readRaw()
+            if let arr { raw["arrangement"] = arr } else { raw.removeValue(forKey: "arrangement") }
+            raw.removeValue(forKey: "layout")      // position overrides of the first editor version
+            var wp = raw["wallpaper"] as? [String: Any] ?? [:]
+            wp["hidden"] = hidden
+            raw["wallpaper"] = wp
+            if let err = AppSettings.writeRaw(raw) { NSLog("[orbit] saving arrangement failed: \(err)") }
+        }
         desktop.onEditingChanged = { [weak self] on in self?.editItem.state = on ? .on : .off }
         server.start()
         // the runtime page polls the config itself; we only need it to decide which providers run

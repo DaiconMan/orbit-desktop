@@ -23,6 +23,8 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
     private(set) var editing = false
     /// HUD editor asked to save: (layout overrides, hidden plugin ids)
     var onSaveLayout: (([String: Any], [String]) -> Void)?
+    /// layout editor saved: (arrangement {zones, widgets} or nil = back to layout.yaml, hidden plugin ids)
+    var onSaveArrangement: (([String: Any]?, [String]) -> Void)?
     var onEditingChanged: ((Bool) -> Void)?
     private var rebuildWork: DispatchWorkItem?
     private(set) var isShowing = false
@@ -157,6 +159,11 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
             let layout = body["layout"] as? [String: Any] ?? [:]
             let hidden = (body["hidden"] as? [Any] ?? []).compactMap { $0 as? String }
             onSaveLayout?(layout, hidden)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.setEditing(false) }
+        case "saveArrangement":
+            let arr = body["arrangement"] as? [String: Any]
+            let hidden = (body["hidden"] as? [Any] ?? []).compactMap { $0 as? String }
+            onSaveArrangement?(arr, hidden)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.setEditing(false) }
         case "exitEdit":
             setEditing(false)

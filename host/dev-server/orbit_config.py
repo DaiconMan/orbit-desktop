@@ -659,7 +659,8 @@ def _validate_position(pos, defaults: dict, where: str, errors: list) -> dict:
 
 
 ZONE_KEYS = {"anchor": ("enum", sorted(ANCHORS)), "x": "length", "y": "length", "width": "length", "height": "length",
-             "gap": "length", "columns": ("integer", (1, 4)), "column_gap": "length", "rotate_seconds": ("integer", (5, 3600))}
+             "gap": "length", "columns": ("integer", (1, 4)), "column_gap": "length", "rotate_seconds": ("integer", (5, 3600)),
+             "scale": ("number", (0.3, 4))}
 
 
 def _validate_zones(given, errors: list) -> dict:
@@ -680,7 +681,7 @@ def _validate_zones(given, errors: list) -> dict:
             errors.append(f"{w}: must be a mapping")
             continue
         r = {"anchor": "top-left", "x": 0, "y": 0, "width": "20vw", "height": "auto", "gap": "3.4vh",
-             "columns": 1, "column_gap": "3vw", "rotate_seconds": None}
+             "columns": 1, "column_gap": "3vw", "rotate_seconds": None, "scale": 1}
         ok = True
         for k, v in z.items():
             if k not in ZONE_KEYS:
@@ -702,7 +703,7 @@ def _validate_zones(given, errors: list) -> dict:
                     ok = False
                 else:
                     r[k] = v
-            elif _check_value({"type": "integer", "min": t[1][0], "max": t[1][1]}, v, f"{w}.{k}", errors):
+            elif _check_value({"type": t[0], "min": t[1][0], "max": t[1][1]}, v, f"{w}.{k}", errors):
                 r[k] = v
             else:
                 ok = False
@@ -783,8 +784,8 @@ def validate_layout(cfg, plugins: dict) -> dict:
         if not isinstance(w, dict):
             errors.append(f"{where}: must be a mapping with 'use'")
             continue
-        for k in sorted(set(w) - {"use", "position", "settings", "id", "zone", "page", "column", "dim"}):
-            errors.append(f"{where}.{k}: unknown key (use, position, settings, id, zone, page, column, dim)")
+        for k in sorted(set(w) - {"use", "position", "settings", "id", "zone", "page", "column", "dim", "scale"}):
+            errors.append(f"{where}.{k}: unknown key (use, position, settings, id, zone, page, column, dim, scale)")
         use = w.get("use")
         m = plugins.get(use)
         if not m:
@@ -804,6 +805,9 @@ def validate_layout(cfg, plugins: dict) -> dict:
                 _check_value({"type": "integer", "min": 0, "max": 40}, page, f"{where}.page", errors)
                 _check_value({"type": "integer", "min": 0, "max": zones[zone]["columns"] - 1}, column, f"{where}.column", errors)
         _check_value({"type": "boolean"}, w.get("dim", True), f"{where}.dim", errors)
+        scale = w.get("scale", 1)
+        if not _check_value({"type": "number", "min": 0.3, "max": 4}, scale, f"{where}.scale", errors):
+            scale = 1
         if len(errors) > n0:
             continue  # skip only the broken widget; the rest of the desktop still renders
         for s in m["needs"]:
@@ -815,7 +819,7 @@ def validate_layout(cfg, plugins: dict) -> dict:
         widgets.append({"instance": f"w{i}", "use": use, "name": m.get("name"), "needs": list(m["needs"]),
                         "settings": settings, "position": position, "assets": list(m.get("assets") or []),
                         "zone": zone if zone in zones else None, "page": page if zone else 0,
-                        "column": column if zone else 0, "dim": w.get("dim", True) is not False})
+                        "column": column if zone else 0, "dim": w.get("dim", True) is not False, "scale": scale})
     if background:
         for s in background["needs"]:
             prov = SIGNAL_PROVIDER.get(s)
@@ -825,9 +829,12 @@ def validate_layout(cfg, plugins: dict) -> dict:
             "zones": zones, "errors": errors, "warnings": warnings}
 
 
-def load_layout(path: str, plugins: dict) -> dict:
+def load_layout(path: str, plugins: dict, overlay: dict | None = None) -> dict:
+    """overlay: top-level keys that replace layout.yaml's (the host app's GUI arrangement: zones + widgets)."""
     try:
         cfg = miniyaml.load_file(path)
+        if overlay:
+            cfg = dict(cfg if isinstance(cfg, dict) else {}, **overlay)
     except FileNotFoundError:
         res = validate_layout({}, plugins)
         res["errors"].insert(0, f"config file not found: {path}")

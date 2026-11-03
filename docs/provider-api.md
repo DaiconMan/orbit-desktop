@@ -31,7 +31,7 @@ frames over `postMessage` (see [Runtime ↔ plugin messages](#runtime--plugin-me
 |---|---|
 | `GET /` | runtime page (`runtime/index.html`) with the host-page CSP |
 | `GET /runtime/host.js`, `/runtime/host.css` | runtime assets |
-| `GET /frame/<pluginId>` | sandboxed plugin document: SDK CSS + plugin `style.css` + SDK JS + `widget.js` inlined with a per-response nonce, sent with the frame CSP (see `security.md`). 404 unless the plugin is used by the active layout. |
+| `GET /frame/<pluginId>` | sandboxed plugin document: SDK CSS + plugin `style.css` + SDK JS + `widget.js` inlined with a per-response nonce, sent with the frame CSP (see `security.md`). 404 unless it is an installed widget (the layout editor previews widgets before they are added) or the active background. |
 | `GET /plugins/<pluginId>/assets/<path>` | a data asset listed in the plugin manifest's `assets:` (JSON/text). 404 otherwise. |
 | `GET /media/background` | the local file of a built-in `image`/`video` background. Supports `Range` (206/416). |
 
