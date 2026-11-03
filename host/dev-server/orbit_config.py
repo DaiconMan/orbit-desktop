@@ -51,6 +51,7 @@ SIGNALS = {
     "sessions": "Local Claude Code sessions (cwd basenames), opt-in",
     "rfc": "Documents awaiting approval in a GitHub repo (via gh), opt-in, personal",
     "cloud": "Local disk usage of cloud-synced folders (OneDrive, iCloud-style File Provider folders)",
+    "power": "USB-C power input: adapter, USB PD offers / contract, input W·V·A, battery charging, warning signs",
 }
 SENSITIVE_SIGNALS = {"calendar", "location", "nowPlaying", "claudeUsage", "network", "github", "sessions", "rfc",
                      "recent", "bluetooth", "contrib", "cloud"}
@@ -76,6 +77,7 @@ GENERIC_SIGNALS = {
     "sessions": ("sessions", "sessions", 15000),
     "rfc": ("rfc", "rfc", 600000),
     "cloud": ("cloud", "cloud", 120000),
+    "power": ("power", "power", 3000),
 }
 
 # actions a widget's own buttons may ask the host app to run (manifest `actions:`)
@@ -455,6 +457,8 @@ DEFAULT_PROVIDERS = {
     "bluetooth": {"enabled": False},
     # folders: [{name, path}]; empty = every folder in ~/Library/CloudStorage (OneDrive, Google Drive, Dropbox, …)
     "cloud": {"enabled": False, "folders": [], "interval_minutes": 10, "warn_gb": 5},
+    # USB-C input from the battery controller (ioreg AppleSmartBattery); thresholds for the warning signs
+    "power": {"enabled": False, "interval_seconds": 3, "voltage_tolerance_pct": 8},
     "onthisday": {"enabled": False, "lang": "ja"},
     "launches": {"enabled": False},
     "kp": {"enabled": False},
@@ -498,6 +502,7 @@ PROVIDER_SCHEMA = {
     "rfc": {"enabled": ("boolean", None), "repo": ("string?", None), "dir": ("string", None), "file_prefix": ("string", None),
             "status_label": ("string", None), "pending_text": ("string", None), "user_action_text": ("string?", None)},
     **{k: {"enabled": ("boolean", None)} for k in ("iss", "bluetooth", "launches", "kp", "contrib", "sessions")},
+    "power": {"enabled": ("boolean", None), "interval_seconds": ("integer", (1, 60)), "voltage_tolerance_pct": ("number", (1, 50))},
     "cloud": {"enabled": ("boolean", None), "folders": ("list", None), "interval_minutes": ("integer", (5, 1440)),
               "warn_gb": ("number", (0.1, 10000))},
 }

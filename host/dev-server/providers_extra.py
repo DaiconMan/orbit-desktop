@@ -19,6 +19,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import time
 import urllib.parse
 import xml.etree.ElementTree as ET
@@ -76,7 +77,7 @@ class ExtraLoops:
                  ("fx", self.fx_loop), ("news", self.news_loop), ("bluetooth", self.bluetooth_loop),
                  ("onthisday", self.onthisday_loop), ("launches", self.launches_loop), ("kp", self.kp_loop),
                  ("contrib", self.contrib_loop), ("github", self.github_loop), ("sessions", self.sessions_loop),
-                 ("rfc", self.rfc_loop), ("cloud", self.cloud_loop))
+                 ("rfc", self.rfc_loop), ("cloud", self.cloud_loop), ("power", self.power_loop))
         loops += [fn for k, fn in table if on(k)]
         if on("recent"):
             rec = _load_json(self._recent_cache())
@@ -477,6 +478,73 @@ class ExtraLoops:
                 pass
             self.set_extra("cloud", {"folders": out, "warn_bytes": int(c["warn_gb"] * 2 ** 30), "disk_free": free, "at": time.time()})
             time.sleep(c["interval_minutes"] * 60)
+
+    # ------------------------------------------------------------------ USB-C power input
+    # Fault counters of the USB-C port controller that should never move during normal charging.
+    PORT_FAULTS = {"PortControllerHardResetCount": "ハードリセット", "PortControllerShortDetectCount": "短絡検出",
+                   "PortControllerInpFetEnFailCount": "入力スイッチ失敗", "PortControllerHvEnRecoveryCount": "高電圧の復旧",
+                   "PortControllerCapMismatch": "電力の不一致", "PortControllerSrdoRejectCount": "電力要求の拒否"}
+
+    def _read_power(self):
+        import plistlib
+        try:
+            raw = subprocess.run(["/usr/sbin/ioreg", "-rw0", "-c", "AppleSmartBattery", "-a"], capture_output=True, timeout=5).stdout
+            j = (plistlib.loads(raw) or [{}])[0] if raw else {}
+        except Exception:
+            return None
+        ad = j.get("AdapterDetails") or {}
+        pt = j.get("PowerTelemetryData") or {}
+        cd = j.get("ChargerData") or {}
+        pc = (j.get("PortControllerInfo") or [{}])[0]
+        offers = [{"v": m.get("MaxVoltage", 0) / 1000, "a": m.get("MaxCurrent", 0) / 1000} for m in ad.get("UsbHvcMenu") or []]
+        return {
+            "connected": bool(j.get("ExternalConnected")), "charging": bool(j.get("IsCharging")), "full": bool(j.get("FullyCharged")),
+            "percent": j.get("CurrentCapacity"),
+            "adapter": {"name": ad.get("Name") or "", "manufacturer": ad.get("Manufacturer") or "", "description": ad.get("Description") or "",
+                        "watts": ad.get("Watts"), "volts": (ad.get("AdapterVoltage") or 0) / 1000 or None,
+                        "amps": (ad.get("Current") or 0) / 1000 or None, "wireless": bool(ad.get("IsWireless")),
+                        "offers": offers, "active": ad.get("UsbHvcHvcIndex")} if ad else None,
+            "input": {"watts": (pt.get("SystemPowerIn") or 0) / 1000, "volts": (pt.get("SystemVoltageIn") or 0) / 1000,
+                      "amps": (pt.get("SystemCurrentIn") or 0) / 1000, "loss_watts": (pt.get("AdapterEfficiencyLoss") or 0) / 1000,
+                      "system_watts": (pt.get("SystemLoad") or 0) / 1000} if pt else None,
+            "battery": {"volts": (j.get("Voltage") or 0) / 1000, "amps": (j.get("Amperage") or 0) / 1000,
+                        "watts": (pt.get("BatteryPower") or 0) / 1000, "cycles": j.get("CycleCount")},
+            "charger": {"not_charging_reason": cd.get("NotChargingReason", 0), "slow_reason": cd.get("SlowChargingReason", 0),
+                        "thermal_limited_s": cd.get("TimeChargingThermallyLimited", 0)},
+            "faults": {k: pc.get(k, 0) for k in self.PORT_FAULTS},
+        }
+
+    def power_loop(self):
+        """USB-C input every interval_seconds: what was negotiated, what flows, and warning signs (counters that
+        moved since the server started, input voltage off the contract, power above the adapter's rating)."""
+        c = self.cfg["power"]
+        base, hist = None, []
+        while True:
+            p = self._read_power()
+            if p:
+                alerts = []
+                if base is None:
+                    base = dict(p["faults"])
+                for k, label in self.PORT_FAULTS.items():
+                    d = (p["faults"].get(k) or 0) - (base.get(k) or 0)
+                    if d > 0:
+                        alerts.append({"level": "danger" if k in ("PortControllerShortDetectCount", "PortControllerInpFetEnFailCount",
+                                                                 "PortControllerHvEnRecoveryCount") else "warn",
+                                       "text": f"USB-C ポート: {label} が {d} 回"})
+                ad, inp = p["adapter"], p["input"]
+                if p["connected"] and ad and inp and ad.get("volts") and inp["amps"] > .2:
+                    dev = abs(inp["volts"] - ad["volts"]) / ad["volts"] * 100
+                    if dev > c["voltage_tolerance_pct"]:
+                        alerts.append({"level": "danger" if dev > 2 * c["voltage_tolerance_pct"] else "warn",
+                                       "text": f"入力電圧 {inp['volts']:.2f}V（契約 {ad['volts']:.0f}V から {dev:.0f}% ずれ）"})
+                if p["connected"] and ad and inp and ad.get("watts") and inp["watts"] > ad["watts"] * 1.08:
+                    alerts.append({"level": "warn", "text": f"入力 {inp['watts']:.1f}W が定格 {ad['watts']}W を超えています"})
+                if p["connected"] and ad and ad.get("description") and "pd" not in ad["description"].lower():
+                    alerts.append({"level": "info", "text": f"USB PD ではない充電（{ad['description']}）"})
+                hist = (hist + [round(inp["watts"], 2) if inp else 0])[-120:]
+                p.update(alerts=alerts, history=hist, at=time.time())
+                self.set_extra("power", p)
+            time.sleep(c["interval_seconds"])
 
     def sessions_loop(self):
         """Local Claude Code sessions (live pids in ~/.claude/sessions); only the cwd basename leaves."""

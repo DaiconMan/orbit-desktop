@@ -1,0 +1,28 @@
+id: power
+name: Power Input
+version: "1.0.0"
+author: DaiconMan
+license: MIT
+kind: widget
+category: system
+description: "USB-C charging: adapter, USB PD offers and the negotiated contract, input W / V / A, battery charging, warning signs."
+needs: [power]
+default_size:
+  width: 22vw
+  height: auto
+settings:
+  show_offers:
+    type: boolean
+    default: true
+    description: "Show the adapter's USB PD offers (5V / 9V / 15V / 20V …) with the active one highlighted"
+  show_battery:
+    type: boolean
+    default: true
+    description: "Show battery charging power"
+i18n:
+  ja:
+    name: "電源入力（USB-C）"
+    description: "W・V・A・PD の契約・異常の兆候"
+    settings:
+      show_offers: "PD の電力候補（5V / 9V / 15V / 20V）を表示"
+      show_battery: "電池への充電を表示"

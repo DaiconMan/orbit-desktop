@@ -1,0 +1,14 @@
+.m-power .big { display: flex; align-items: baseline; gap: calc(var(--vh) * .8); }
+.m-power .big b { font: 200 var(--t-xl) var(--disp); font-variant-numeric: tabular-nums; line-height: 1; }
+.m-power .big small { font: 500 var(--t-xs) var(--mono); letter-spacing: .12em; opacity: .5; }
+.m-power .big .va { margin-left: auto; font: 500 var(--t-s) var(--mono); opacity: .75; font-variant-numeric: tabular-nums; }
+.m-power .sp { display: block; width: 100%; height: calc(var(--vh) * 2.4); margin: calc(var(--vh) * .6) 0; }
+.m-power .pdo { display: flex; gap: calc(var(--vw) * .4); margin: calc(var(--vh) * .4) 0 calc(var(--vh) * .8); }
+.m-power .pdo span { flex: 1; text-align: center; padding: calc(var(--vh) * .3) 0; border: 1px solid var(--rule); border-radius: 4px; opacity: .45; font-variant-numeric: tabular-nums; }
+.m-power .pdo span small { display: block; margin: 0; font-size: var(--t-xs); opacity: .7; }
+.m-power .pdo span.on { opacity: 1; border-color: rgb(var(--c)); color: rgb(var(--c)); }
+.m-power .kv { grid-template-columns: 5.5em minmax(0, 1fr); }
+.m-power .al { margin-top: calc(var(--vh) * .8); font-size: var(--t-xs); line-height: 1.6; }
+.m-power .al .danger { color: #ff8a95; } .m-power .al .warn { color: #ffb37a; } .m-power .al .info { opacity: .6; }
+.m-power.bad .mh .eb { color: #ff8a95; opacity: 1; }
+.m-power.warnish .mh .eb { color: #ffb37a; opacity: 1; }
