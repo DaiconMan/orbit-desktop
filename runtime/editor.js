@@ -123,9 +123,10 @@
       b.appendChild(tag);
       b.onpointerdown = ev => dragWidget(ev, { idx });
       if (E.sel === idx) {
-        const hs = $c('div', 'ed-h scale'); hs.title = 'ドラッグで大きさ'; hs.onpointerdown = ev => resize(ev, idx, 'scale');
-        const hw = $c('div', 'ed-h width'); hw.title = 'ドラッグで幅'; hw.onpointerdown = ev => resize(ev, idx, 'width');
-        b.append(hs, hw);
+        const hs = $c('div', 'ed-h scale'); hs.title = '枠の大きさ（⇧ を押しながらで中身ごと拡大縮小）'; hs.onpointerdown = ev => resize(ev, idx, ev.shiftKey ? 'scale' : 'box');
+        const hw = $c('div', 'ed-h width'); hw.title = '幅'; hw.onpointerdown = ev => resize(ev, idx, 'width');
+        const hh = $c('div', 'ed-h height'); hh.title = '高さ'; hh.onpointerdown = ev => resize(ev, idx, 'height');
+        b.append(hs, hw, hh);
       }
       L.appendChild(b);
       if (!r.empty) drawn.push([b, r]);
@@ -202,16 +203,33 @@
   function resize(e, idx, mode) {
     e.preventDefault(); e.stopPropagation();
     remember();
-    const w = E.arr[idx], f = frameOf(idx), r0 = f.slot.getBoundingClientRect(), x0 = e.clientX, s0 = w.scale || 1, W0 = Math.max(r0.width, 60);
+    const w = E.arr[idx], f = frameOf(idx), r0 = f.slot.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY, s0 = w.scale || 1;
+    const W0 = Math.max(r0.width, 60), H0 = Math.max(r0.height, 30);
+    // widgets are laid out for roughly their natural width: keep the box between 0.6× and 1.8× of it
+    const natW = natural(w, f, r0), wMin = natW * .6 * s0, wMax = natW * 1.8 * s0;
     const move = ev => {
-      const g = E.grid && !ev.altKey, dx = ev.clientX - x0;
+      const g = E.grid && !ev.altKey, dx = ev.clientX - x0, dy = ev.clientY - y0;
       if (mode === 'scale') setScale(idx, s0 * Math.max(.2, (W0 + dx) / W0), g);
-      else { let v = vw(Math.max(80, W0 + dx)) / s0; if (g) v = snap(v, .5); w.position.width = v.toFixed(1) + 'vw'; f.iframe.style.width = O().scaled(w.position.width, w.scale || 1); }
+      if (mode === 'width' || mode === 'box') {
+        let v = vw(Math.min(wMax, Math.max(wMin, W0 + dx))) / s0; if (g) v = snap(v, .5);
+        w.position.width = v.toFixed(1) + 'vw'; f.iframe.style.width = O().scaled(w.position.width, s0);
+      }
+      if (mode === 'height' || mode === 'box') {
+        let v = vh(Math.max(30, H0 + dy)) / s0; if (g) v = snap(v, .5);
+        w.position.height = v.toFixed(1) + 'vh'; f.auto = Object.assign({}, f.auto, { height: false });
+        f.iframe.style.height = O().scaled(w.position.height, s0);
+      }
       const r = f.slot.getBoundingClientRect(); placeLive(w, f, R(r0.left, r0.top, r.width, r.height));
       drawBoxes();
     };
     const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); setTimeout(() => { drawBoxes(); drawInspector(); }, 400); };
     addEventListener('pointermove', move); addEventListener('pointerup', up);
+  }
+  function natural(w, f, r) {         // the widget's natural width in px at scale 1
+    const c = cat(w.use), ds = (c.defaultSize || {}).width;
+    if (ds && ds !== 'auto' && /vw$/.test(ds)) return parseFloat(ds) / 100 * innerWidth;
+    if (!f.natW) f.natW = r.width / (w.scale || 1);
+    return f.natW;
   }
   function setScale(idx, k, g) {
     const w = E.arr[idx], f = frameOf(idx);
@@ -333,10 +351,13 @@
     const szv = $c('span', 'v', sz.value + '%');
     sz.onpointerdown = () => remember();
     sz.oninput = () => { setScale(E.sel, sz.value / 100, false); szv.textContent = sz.value + '%'; drawBoxes(); };
-    const szr = row('大きさ', sz); szr.appendChild(szv); s1.appendChild(szr);
+    const szr = row('中身の大きさ（文字など）', sz); szr.appendChild(szv); s1.appendChild(szr);
     const auto = $c('input'); auto.type = 'checkbox'; auto.checked = w.position.width === 'auto';
     auto.onchange = () => { remember(); if (auto.checked) w.position.width = 'auto'; else { const f = frameOf(E.sel); w.position.width = (f ? vw(f.slot.getBoundingClientRect().width / (w.scale || 1)) : 20).toFixed(1) + 'vw'; } render(); };
-    s1.appendChild(row('幅を中身に合わせる', auto, auto.checked ? '' : '幅は枠の右端をドラッグ'));
+    s1.appendChild(row('幅を中身に合わせる', auto));
+    const autoH = $c('input'); autoH.type = 'checkbox'; autoH.checked = !w.position.height || w.position.height === 'auto';
+    autoH.onchange = () => { remember(); if (autoH.checked) w.position.height = 'auto'; else { const f = frameOf(E.sel); w.position.height = (f ? vh(f.slot.getBoundingClientRect().height / (w.scale || 1)) : 20).toFixed(1) + 'vh'; } render(); };
+    s1.appendChild(row('高さを中身に合わせる', autoH, '枠の大きさは、選んだ枠の右下・右端・下端をドラッグ'));
     P.appendChild(s1);
 
     const keys = Object.keys(c.schema || {});

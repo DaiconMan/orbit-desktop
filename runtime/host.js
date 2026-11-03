@@ -359,7 +359,7 @@
         init: { settings: w.settings, needs: w.needs, sizing: { width: w.position.width, height: w.position.height }, maxWidth: Math.round(innerWidth * .9) } }, slot);
       f.iframe.style.width = auto.width ? Math.round(innerWidth * .9) + 'px' : scaled(w.position.width, w.scale || 1);
       if ((w.actions || []).length && !w.action) f.iframe.classList.add('interactive');   // its own buttons
-      f.iframe.style.height = auto.height ? '10px' : cssLen(w.position.height);
+      f.iframe.style.height = auto.height ? '10px' : scaled(w.position.height, w.scale || 1);
       if (!auto.width && !auto.height) slot.classList.remove('pending');
     });
   }

@@ -23,6 +23,7 @@ body.editing .notice { display: none; }
 .ed-h { position: absolute; background: var(--ed-blue); border-radius: 3px; z-index: 2; }
 .ed-h.scale { right: -8px; bottom: -8px; width: 16px; height: 16px; cursor: nwse-resize; }
 .ed-h.width { right: -4px; top: 30%; bottom: 30%; width: 7px; cursor: ew-resize; }
+.ed-h.height { bottom: -4px; left: 30%; right: 30%; height: 7px; cursor: ns-resize; }
 .ed-guide { position: fixed; display: none; pointer-events: none; background: rgba(255,120,200,.8); }
 .ed-guide.x { top: 0; bottom: 0; width: 1px; } .ed-guide.y { left: 0; right: 0; height: 1px; }
 .ed-ghost { position: fixed; z-index: 10; pointer-events: none; padding: 5px 12px; border-radius: 99px; background: rgba(40,120,220,.95); color: #fff; font-weight: 600; white-space: nowrap; }

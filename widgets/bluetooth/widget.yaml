@@ -1,16 +1,23 @@
 id: bluetooth
 name: Bluetooth
-version: "1.0.0"
+version: "1.1.0"
 author: DaiconMan
 license: MIT
 kind: widget
 category: system
-description: "Connected Bluetooth devices with battery levels; hidden when none is connected."
+description: "Connected Bluetooth devices with battery levels; paired ones are listed as not connected."
 needs: [bluetooth]
+settings:
+  show_paired:
+    type: boolean
+    default: true
+    description: "Also list paired devices that are not connected (dimmed, 未接続)"
 default_size:
   width: 16vw
   height: auto
 i18n:
   ja:
+    settings:
+      show_paired: "未接続の登録済み機器も表示"
     name: "Bluetooth 機器"
-    description: "接続中の機器と電池残量"
+    description: "接続中の機器と電池残量・未接続の機器"

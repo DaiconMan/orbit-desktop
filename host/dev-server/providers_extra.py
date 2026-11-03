@@ -407,8 +407,11 @@ class ExtraLoops:
         while True:
             try:
                 j = json.loads(self.sh(["/usr/sbin/system_profiler", "SPBluetoothDataType", "-json"], timeout=40) or "{}")
-                out = []
+                out, paired = [], []
                 for ctl in j.get("SPBluetoothDataType", []):
+                    for d in ctl.get("device_not_connected", []) or []:   # paired but not connected: names only
+                        for name, info in d.items():
+                            paired.append({"name": name, "type": info.get("device_minorType") or ""})
                     for d in ctl.get("device_connected", []) or []:
                         for name, info in d.items():
                             bat = {}
@@ -417,7 +420,7 @@ class ExtraLoops:
                                 if m:
                                     bat[lab] = int(m.group(1))
                             out.append({"name": name, "type": info.get("device_minorType") or "", "battery": bat})
-                self.set_extra("bluetooth", {"devices": out, "at": time.time()})
+                self.set_extra("bluetooth", {"devices": out, "paired": paired, "at": time.time()})
             except Exception:
                 pass
             time.sleep(300)
