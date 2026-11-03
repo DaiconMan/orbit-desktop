@@ -451,24 +451,53 @@ return "ok"
             time.sleep(c["refresh_minutes"] * 60)
 
     # ------------------------------------------------------------------ unofficial: Claude usage
+    CLAUDE_KEYS = ("five_hour", "seven_day", "seven_day_opus", "seven_day_sonnet", "seven_day_fable")
+
+    def _claude_rows(self, util):
+        rows = []
+        for k, v in (util or {}).items():
+            if k in self.CLAUDE_KEYS and isinstance(v, dict) and isinstance(v.get("utilization"), (int, float)):
+                rows.append({"key": k, "pct": v["utilization"], "resets": v.get("resets_at")})
+        return rows
+
+    def _claude_cache(self):
+        with open(os.path.expanduser("~/.claude.json"), "rb") as f:
+            u = json.loads(f.read(20_000_000)).get("cachedUsageUtilization") or {}
+        return {"rows": self._claude_rows(u.get("utilization")), "fetched": (u.get("fetchedAtMs") or 0) / 1000, "source": "cache"}
+
+    def _claude_command(self):
+        """source: command — run the user's own command (outside this repo) and read its stdout:
+        {"five_hour": {"utilization": n, "resets_at": iso}, "seven_day": {...}, ...}. Orbit ships no code that
+        talks to any account; what the command does is the user's business."""
+        cmd = os.path.expanduser(self.cfg["claude_usage"].get("command") or "")
+        if not (cmd and os.path.isfile(cmd) and os.access(cmd, os.X_OK)):
+            raise ValueError("providers.claude_usage.command is not an executable file")
+        out = subprocess.run([cmd], capture_output=True, text=True, timeout=60).stdout
+        body = json.loads(out[:1_000_000] or "{}")
+        return {"rows": self._claude_rows(body.get("utilization", body)), "fetched": time.time(), "source": "command"}
+
     def claude_loop(self):
-        """UNOFFICIAL. Reads the undocumented `cachedUsageUtilization` field Claude Code keeps in
-        ~/.claude.json. Only enabled with providers.claude_usage.enabled: true. Only the usage
-        percentages and reset times leave this function - nothing else from that file."""
-        keys = ("five_hour", "seven_day", "seven_day_opus", "seven_day_sonnet", "seven_day_fable")
+        """UNOFFICIAL. Claude Code usage meters, opt-in (providers.claude_usage.enabled). Only the usage
+        percentages and reset times leave this function."""
+        c = self.cfg["claude_usage"]
         while True:
-            try:
-                with open(os.path.expanduser("~/.claude.json"), "rb") as f:
-                    u = json.loads(f.read(20_000_000)).get("cachedUsageUtilization") or {}
-                rows = []
-                for k, v in (u.get("utilization") or {}).items():
-                    if k in keys and isinstance(v, dict) and isinstance(v.get("utilization"), (int, float)):
-                        rows.append({"key": k, "pct": v["utilization"], "resets": v.get("resets_at")})
+            data, err = None, None
+            if c.get("source") == "command":
+                try:
+                    data = self._claude_command()
+                except Exception as e:                      # never include the token or the response in errors
+                    err = type(e).__name__ + (f": {e}" if isinstance(e, ValueError) else "")
+            if data is None:
+                try:
+                    data = self._claude_cache()
+                except (OSError, ValueError, AttributeError):
+                    data = None
+            if data is not None:
+                if err:
+                    data["error"] = err[:120]
                 with self.lock:
-                    self.claude = {"rows": rows, "fetched": (u.get("fetchedAtMs") or 0) / 1000}
-            except (OSError, ValueError, AttributeError):
-                pass
-            time.sleep(30)
+                    self.claude = data
+            time.sleep(max(120, c.get("interval_minutes", 5) * 60) if c.get("source") == "command" else 30)
 
     # ------------------------------------------------------------------ accessors (JSON-safe copies)
     def get(self, name):

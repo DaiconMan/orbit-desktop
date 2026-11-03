@@ -445,7 +445,9 @@ DEFAULT_PROVIDERS = {
                     "itunes_country": "US"},
     "calendar": {"file": os.path.join(CACHE_DIR, "calendar.json")},
     "audio": {"file": os.path.join(CACHE_DIR, "audiopulse.json")},
-    "claude_usage": {"enabled": False},
+    # source: "cache" = the copy Claude Code keeps in ~/.claude.json (can be days old);
+    #         "command" = run your own executable (outside the repo) every interval_minutes and read its JSON stdout
+    "claude_usage": {"enabled": False, "source": "cache", "command": None, "interval_minutes": 5},
     "mac": {"enabled": True, "active": True},
     "network": {"enabled": True, "home_subnet": None, "home_ssid": None, "home_interface": "auto", "mounts": [],
                 "interval_seconds": 5},
@@ -488,7 +490,8 @@ PROVIDER_SCHEMA = {
                     "itunes_country": ("string", None)},
     "calendar": {"file": ("string", None)},
     "audio": {"file": ("string", None)},
-    "claude_usage": {"enabled": ("boolean", None)},
+    "claude_usage": {"enabled": ("boolean", None), "source": ("enum", ["cache", "command"]), "command": ("string?", None),
+                     "interval_minutes": ("integer", (2, 120))},
     "mac": {"enabled": ("boolean", None), "active": ("boolean", None)},
     "network": {"enabled": ("boolean", None), "home_subnet": ("string?", None), "home_ssid": ("string?", None),
                 "home_interface": ("string", None), "mounts": ("list", None), "interval_seconds": ("integer", (2, 600))},
