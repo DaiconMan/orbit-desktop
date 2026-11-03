@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/contrib.schema.json",
+  "title": "contrib signal",
+  "description": "GitHub contribution calendar of the gh user (gh api graphql), refreshed hourly. GET /api/signals/contrib, polled every 30 min; 404 unless providers.contrib.enabled (opt-in, uses your gh login); null until the first fetch. SENSITIVE (activity pattern).",
+  "type": "object",
+  "properties": {
+    "days": {
+      "type": "array",
+      "description": "The last 14 weeks (up to 98 days), oldest first, each a [date, count] pair.",
+      "items": {
+        "type": "array",
+        "description": "['YYYY-MM-DD', contributions that day].",
+        "prefixItems": [
+          {
+            "type": "string",
+            "description": "Date (GitHub's calendar day)."
+          },
+          {
+            "type": "integer",
+            "description": "Contributions that day.",
+            "minimum": 0
+          }
+        ],
+        "items": false,
+        "minItems": 2,
+        "maxItems": 2
+      },
+      "maxItems": 98
+    },
+    "year": {
+      "type": "integer",
+      "description": "Total contributions over the last year (GitHub's calendar total).",
+      "minimum": 0
+    },
+    "at": {
+      "type": "number",
+      "description": "When it was fetched. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "days",
+    "year",
+    "at"
+  ],
+  "additionalProperties": true
+}

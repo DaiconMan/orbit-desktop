@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/alerts.schema.json",
+  "title": "alerts signal",
+  "description": "Japanese Earthquake Early Warning (緊急地震速報) and tsunami warnings from the P2P地震情報 WebSocket, maintained by the host app (EEWProvider.swift -> host-dir/alerts.json, rewritten every second while an alert is active and every 30 s otherwise). GET /api/signals/alerts, polled every 1 s; always served (no provider switch). Without the host app eew/tsunami/ws/pref are null. An alerts.json older than 15 s means no active alert. While eew or tsunami is non-null the runtime dims other widgets. Not sensitive (pref is the user's prefecture).",
+  "type": "object",
+  "properties": {
+    "eew": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "The active EEW, or null.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Event id (stable across updates of the same quake)."
+        },
+        "serial": {
+          "type": [
+            "string",
+            "number",
+            "null"
+          ],
+          "description": "Report serial number of this update (as sent upstream)."
+        },
+        "recv": {
+          "type": "number",
+          "description": "When this update was received. Unix time in seconds (float)."
+        },
+        "origin": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Origin time of the quake. Unix time in seconds (float). Null if unknown."
+        },
+        "place": {
+          "type": "string",
+          "description": "Hypocentre name (Japanese), '' if unknown."
+        },
+        "mag": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Magnitude, or null if unknown."
+        },
+        "depth": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Depth in km, or null if unknown."
+        },
+        "condition": {
+          "type": "string",
+          "description": "Upstream condition text (e.g. '仮定震源要素'), '' if none."
+        },
+        "areas": {
+          "type": "array",
+          "description": "Forecast areas.",
+          "items": {
+            "type": "object",
+            "description": "A forecast area.",
+            "properties": {
+              "pref": {
+                "type": "string",
+                "description": "Prefecture name (Japanese), '' if absent."
+              },
+              "name": {
+                "type": "string",
+                "description": "Area name (Japanese)."
+              },
+              "from": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "Lower bound of the predicted intensity as a P2PQuake scale code (10 = 1 … 45 = 5弱 … 70 = 7), or null."
+              },
+              "to": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "Upper bound as a scale code; 99 means 'or more'; null if absent."
+              },
+              "kind": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "P2PQuake kindCode of the area (e.g. '10' = not yet arrived, '11' = arrived, '19' = no PLUM), or null."
+              }
+            },
+            "required": [
+              "pref",
+              "name"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "maxscale": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Highest predicted intensity over the areas as a P2PQuake scale code, or null."
+        },
+        "cancelled": {
+          "type": "boolean",
+          "description": "True once the warning was cancelled (it disappears 15 s later)."
+        },
+        "test": {
+          "type": "boolean",
+          "description": "True for a test / locally injected alert."
+        },
+        "music": {
+          "type": "object",
+          "description": "What the host app did about music for this EEW.",
+          "properties": {
+            "eligible": {
+              "type": "boolean",
+              "description": "The pause rule matched (user's prefecture warned or strong shaking) and pause_music is on."
+            },
+            "local": {
+              "type": "boolean",
+              "description": "The user's prefecture is among the warned areas."
+            },
+            "strong": {
+              "type": "boolean",
+              "description": "Predicted max intensity >= pause_min_intensity."
+            },
+            "prefs": {
+              "type": "array",
+              "description": "Prefectures treated as 'local'.",
+              "items": {
+                "type": "string",
+                "description": "Prefecture name."
+              }
+            },
+            "dry": {
+              "type": "boolean",
+              "description": "Test alert: nothing was actually paused."
+            },
+            "paused": {
+              "type": "array",
+              "description": "Players that were paused (e.g. ['Music']).",
+              "items": {
+                "type": "string",
+                "description": "Player name."
+              }
+            }
+          },
+          "required": [
+            "eligible"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "id",
+        "recv",
+        "areas",
+        "cancelled",
+        "test"
+      ],
+      "additionalProperties": true
+    },
+    "tsunami": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Active tsunami warnings, or null.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Issue id (issue time)."
+        },
+        "recv": {
+          "type": "number",
+          "description": "Received. Unix time in seconds (float)."
+        },
+        "areas": {
+          "type": "array",
+          "description": "Coastal areas.",
+          "items": {
+            "type": "object",
+            "description": "A tsunami forecast area.",
+            "properties": {
+              "grade": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "MajorWarning (大津波警報) | Warning (津波警報) | Watch (津波注意報) | Unknown, or null."
+              },
+              "name": {
+                "type": "string",
+                "description": "Area name (Japanese)."
+              },
+              "immediate": {
+                "type": "boolean",
+                "description": "Arrival is imminent."
+              },
+              "height": {
+                "type": "string",
+                "description": "Expected max height text (Japanese), '' if none."
+              }
+            },
+            "required": [
+              "grade",
+              "name"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "test": {
+          "type": "boolean",
+          "description": "Test / injected."
+        }
+      },
+      "required": [
+        "id",
+        "recv",
+        "areas"
+      ],
+      "additionalProperties": true
+    },
+    "ws": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "WebSocket connection state: {connected: true, since, msgs, last} | {connected: false, error, at} | {connected: false, disabled: true, at}; null without the host app.",
+      "properties": {
+        "connected": {
+          "type": "boolean",
+          "description": "True while the stream is open."
+        },
+        "since": {
+          "type": "number",
+          "description": "Connected since. Unix time in seconds (float)."
+        },
+        "msgs": {
+          "type": "integer",
+          "description": "Messages received since connecting.",
+          "minimum": 0
+        },
+        "last": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Last message. Unix time in seconds (float)."
+        },
+        "error": {
+          "type": "string",
+          "description": "Why it is not connected ('connecting' while retrying)."
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "EEW is turned off."
+        },
+        "at": {
+          "type": "number",
+          "description": "When the state changed. Unix time in seconds (float)."
+        }
+      },
+      "required": [
+        "connected"
+      ],
+      "additionalProperties": true
+    },
+    "pref": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Prefecture(s) of the user (GSI reverse geocoding of the location), or null without the host app.",
+      "properties": {
+        "names": {
+          "type": "array",
+          "description": "Prefecture names (Japanese).",
+          "items": {
+            "type": "string",
+            "description": "Prefecture."
+          }
+        },
+        "src": {
+          "type": "string",
+          "description": "'gsi' = geocoded, 'default' = fallback list.",
+          "enum": [
+            "gsi",
+            "default"
+          ]
+        }
+      },
+      "required": [
+        "names",
+        "src"
+      ],
+      "additionalProperties": true
+    },
+    "eewEnabled": {
+      "type": "boolean",
+      "description": "The user has EEW turned on (settings.json eew.enabled, default true)."
+    },
+    "ts": {
+      "type": "number",
+      "description": "When the host app wrote alerts.json. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "eew",
+    "tsunami",
+    "eewEnabled"
+  ],
+  "additionalProperties": true
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/audio.schema.json",
+  "title": "audio signal",
+  "description": "System-audio spectrum measured by the host app (AudioProvider.swift, Core Audio process tap; needs the 'System Audio Recording Only' permission). Streamed as Server-Sent Events at about 20 frames per second (GET /api/stream/audio); GET /api/signals/audio is a one-off snapshot (null when there is no frame file). Values are raw energies, NOT normalised: the SDK applies auto-gain. Only levels, never audio, leave the app. Not sensitive.",
+  "type": "object",
+  "properties": {
+    "level": {
+      "type": "number",
+      "description": "Overall RMS level (raw, typically 0-0.3).",
+      "minimum": 0
+    },
+    "bass": {
+      "type": "number",
+      "description": "Energy 25-160 Hz (raw).",
+      "minimum": 0
+    },
+    "mid": {
+      "type": "number",
+      "description": "Energy 160-2000 Hz (raw).",
+      "minimum": 0
+    },
+    "high": {
+      "type": "number",
+      "description": "Energy 2-10 kHz (raw).",
+      "minimum": 0
+    },
+    "bands": {
+      "type": "array",
+      "description": "16 log-spaced band energies, 40 Hz to 12 kHz, low to high (raw).",
+      "items": {
+        "type": "number",
+        "description": "Band energy (raw).",
+        "minimum": 0
+      },
+      "minItems": 16,
+      "maxItems": 16
+    },
+    "ts": {
+      "type": "number",
+      "description": "Frame time. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "level",
+    "bass",
+    "mid",
+    "high",
+    "bands"
+  ],
+  "additionalProperties": true
+}

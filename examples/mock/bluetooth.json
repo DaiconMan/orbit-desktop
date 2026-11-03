@@ -1,0 +1,27 @@
+{
+  "devices": [
+    {
+      "name": "Example Buds",
+      "type": "Headphones",
+      "battery": {
+        "L": 80,
+        "R": 75,
+        "case": 40
+      }
+    },
+    {
+      "name": "Magic Keyboard",
+      "type": "Keyboard",
+      "battery": {
+        "main": 62
+      }
+    }
+  ],
+  "paired": [
+    {
+      "name": "Example Speaker",
+      "type": "Speaker"
+    }
+  ],
+  "at": 1793784540.0
+}

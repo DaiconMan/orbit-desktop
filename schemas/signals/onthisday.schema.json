@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/onthisday.schema.json",
+  "title": "onthisday signal",
+  "description": "'On this day' from Wikipedia: for lang 'ja' the ja.wikipedia day article (できごと + Japanese 記念日), otherwise the Wikimedia onthisday feed. Fetched once per local day (retried every 10 min until it works). GET /api/signals/onthisday, polled every 10 min; 404 unless providers.onthisday.enabled (opt-in network); null until the first fetch. Text is CC BY-SA (Wikipedia). Not sensitive.",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "description": "Local date 'YYYY-MM-DD' this is for.",
+      "format": "date"
+    },
+    "events": {
+      "type": "array",
+      "description": "Historical events of this day, oldest first.",
+      "items": {
+        "type": "object",
+        "description": "An event.",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "description": "Year (may be small for ancient events)."
+          },
+          "text": {
+            "type": "string",
+            "description": "Plain-text description."
+          }
+        },
+        "required": [
+          "year",
+          "text"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "observances": {
+      "type": "array",
+      "description": "Observances / holidays of this day (max 6).",
+      "items": {
+        "type": "string",
+        "description": "Observance name."
+      },
+      "maxItems": 6
+    }
+  },
+  "required": [
+    "date",
+    "events",
+    "observances"
+  ],
+  "additionalProperties": true
+}

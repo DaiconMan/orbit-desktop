@@ -1,5 +1,9 @@
 # Provider API (v1)
 
+> The canonical, machine-readable payload contracts are the JSON Schemas in
+> [`schemas/signals/`](../schemas/signals/) (index: `schemas/signals/index.json`), with samples in
+> [`examples/mock/`](../examples/mock/). This page explains the transport and the main signals.
+
 The contract between a **host** and the **runtime page**. The host is the Python dev server
 (`host/dev-server/orbit_server.py`). It runs either on its own or as a child process of the Swift
 host app (`host/app`). In the second case, it gets these arguments:
@@ -112,7 +116,7 @@ received the poll, in ms) before forwarding.
                 "calendar": "Work", "color": "#1badf8", "location": "", "status": "busy" } ],
   "ts": 1700000000.0 }
 ```
-This covers today and tomorrow. `status` is `busy` or `free`.
+This covers today and the next 8 days (the host app's EventKit provider). `status` is `busy` or `free`.
 
 ### `weather` → `GET /api/signals/weather` (60 s; the host refreshes upstream every `refresh_minutes`)
 This is the Open-Meteo forecast: `current`, `hourly` (12 h), `daily` (5 d, incl. `sunrise`, `sunset`,

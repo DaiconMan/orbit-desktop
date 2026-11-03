@@ -1,0 +1,12 @@
+{
+  "local": [
+    {
+      "cwd": "app",
+      "kind": "interactive"
+    },
+    {
+      "cwd": "website",
+      "kind": "interactive"
+    }
+  ]
+}

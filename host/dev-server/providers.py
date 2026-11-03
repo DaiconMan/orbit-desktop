@@ -539,22 +539,6 @@ return "ok"
         empty["eewEnabled"] = en
         if not self.host_dir:
             return empty
-        try:
-            j = json.loads(read_small(os.path.join(self.host_dir, "alerts.json"), 512_000) or b"{}")
-            j["eewEnabled"] = en
-            if time.time() - float(j.get("ts", 0)) > 15:
-                j["eew"] = j["tsunami"] = None
-            return j
-        except (ValueError, TypeError, AttributeError):
-            pass
-        return empty
-        try:
-            j = json.loads(read_small(os.path.join(self.host_dir, "alerts.json"), 512_000) or b"{}")
-            if time.time() - float(j.get("ts", 0)) < 15:
-                return j
-        except (ValueError, TypeError, AttributeError):
-            pass
-        return empty
 
     def artwork(self):
         with self.lock:

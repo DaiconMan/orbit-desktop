@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-04",
+  "events": [
+    {
+      "year": 1737,
+      "text": "The Teatro di San Carlo opens in Naples."
+    },
+    {
+      "year": 1922,
+      "text": "The entrance to the tomb of Tutankhamun is found in the Valley of the Kings."
+    },
+    {
+      "year": 1879,
+      "text": "James Ritty patents the first mechanical cash register."
+    }
+  ],
+  "observances": [
+    "Example Day of Libraries"
+  ]
+}

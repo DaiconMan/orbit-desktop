@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/power.schema.json",
+  "title": "power signal",
+  "description": "USB-C power input from the AppleSmartBattery IORegistry entry, read every providers.power.interval_seconds (default 3 s): adapter and its USB PD offers, the negotiated contract, input W/V/A, battery flow, charger reasons, port-controller fault counters and derived warning signs. GET /api/signals/power, polled every 3 s; 404 unless providers.power.enabled; null until the first read. The battery controller refreshes telemetry only about once a minute: use `measured_at` for its age. Not sensitive.",
+  "type": "object",
+  "properties": {
+    "connected": {
+      "type": "boolean",
+      "description": "External power is connected."
+    },
+    "charging": {
+      "type": "boolean",
+      "description": "The battery is charging."
+    },
+    "full": {
+      "type": "boolean",
+      "description": "The battery reports fully charged."
+    },
+    "percent": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Battery charge, percent, or null.",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "adapter": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "The connected adapter, or null when none / not reported.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Adapter name ('' if none)."
+        },
+        "manufacturer": {
+          "type": "string",
+          "description": "Manufacturer ('' if none)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Kind, e.g. 'pd charger' ('' if none)."
+        },
+        "watts": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Rated power, W, or null."
+        },
+        "volts": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Contract voltage, V, or null."
+        },
+        "amps": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Contract current, A, or null."
+        },
+        "wireless": {
+          "type": "boolean",
+          "description": "Wireless (MagSafe-style inductive) charger."
+        },
+        "offers": {
+          "type": "array",
+          "description": "USB PD source capabilities (fixed PDOs), low to high.",
+          "items": {
+            "type": "object",
+            "description": "A PD offer.",
+            "properties": {
+              "v": {
+                "type": "number",
+                "description": "Voltage, V."
+              },
+              "a": {
+                "type": "number",
+                "description": "Max current, A."
+              }
+            },
+            "required": [
+              "v",
+              "a"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "active": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Index into `offers` of the negotiated contract, or null.",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "name",
+        "manufacturer",
+        "description",
+        "watts",
+        "volts",
+        "amps",
+        "wireless",
+        "offers",
+        "active"
+      ],
+      "additionalProperties": true
+    },
+    "input": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "What flows in from the adapter (PowerTelemetryData), or null when not reported.",
+      "properties": {
+        "watts": {
+          "type": "number",
+          "description": "Input power, watts."
+        },
+        "volts": {
+          "type": "number",
+          "description": "Input voltage, V."
+        },
+        "amps": {
+          "type": "number",
+          "description": "Input current, A."
+        },
+        "loss_watts": {
+          "type": "number",
+          "description": "Adapter efficiency loss, watts."
+        },
+        "system_watts": {
+          "type": "number",
+          "description": "System load, watts."
+        }
+      },
+      "required": [
+        "watts",
+        "volts",
+        "amps",
+        "loss_watts",
+        "system_watts"
+      ],
+      "additionalProperties": true
+    },
+    "battery": {
+      "type": "object",
+      "description": "Battery side.",
+      "properties": {
+        "volts": {
+          "type": "number",
+          "description": "Battery voltage, V."
+        },
+        "amps": {
+          "type": "number",
+          "description": "Battery current, A (negative = discharging)."
+        },
+        "watts": {
+          "type": "number",
+          "description": "Battery power (negative = discharging), watts."
+        },
+        "cycles": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Cycle count, or null.",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "volts",
+        "amps",
+        "watts",
+        "cycles"
+      ],
+      "additionalProperties": true
+    },
+    "charger": {
+      "type": "object",
+      "description": "Charger diagnostics (ChargerData).",
+      "properties": {
+        "not_charging_reason": {
+          "type": "integer",
+          "description": "NotChargingReason bit field (0 = none)."
+        },
+        "slow_reason": {
+          "type": "integer",
+          "description": "SlowChargingReason bit field (0 = none)."
+        },
+        "thermal_limited_s": {
+          "type": "integer",
+          "description": "Seconds charging was thermally limited.",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "not_charging_reason",
+        "slow_reason",
+        "thermal_limited_s"
+      ],
+      "additionalProperties": true
+    },
+    "faults": {
+      "type": "object",
+      "description": "USB-C port-controller fault counters (cumulative since boot). They should not move during normal charging; alerts report increases since the server started.",
+      "additionalProperties": {
+        "type": "integer",
+        "description": "Counter value.",
+        "minimum": 0
+      },
+      "properties": {
+        "PortControllerHardResetCount": {
+          "type": "integer",
+          "description": "PortControllerHardResetCount counter.",
+          "minimum": 0
+        },
+        "PortControllerShortDetectCount": {
+          "type": "integer",
+          "description": "PortControllerShortDetectCount counter.",
+          "minimum": 0
+        },
+        "PortControllerInpFetEnFailCount": {
+          "type": "integer",
+          "description": "PortControllerInpFetEnFailCount counter.",
+          "minimum": 0
+        },
+        "PortControllerHvEnRecoveryCount": {
+          "type": "integer",
+          "description": "PortControllerHvEnRecoveryCount counter.",
+          "minimum": 0
+        },
+        "PortControllerCapMismatch": {
+          "type": "integer",
+          "description": "PortControllerCapMismatch counter.",
+          "minimum": 0
+        },
+        "PortControllerSrdoRejectCount": {
+          "type": "integer",
+          "description": "PortControllerSrdoRejectCount counter.",
+          "minimum": 0
+        }
+      }
+    },
+    "alerts": {
+      "type": "array",
+      "description": "Derived warning signs (Japanese text): fault counters that moved, input voltage off the contract by more than voltage_tolerance_pct, input above the adapter rating, non-PD charging.",
+      "items": {
+        "type": "object",
+        "description": "A warning.",
+        "properties": {
+          "level": {
+            "type": "string",
+            "description": "Severity.",
+            "enum": [
+              "info",
+              "warn",
+              "danger"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "Human-readable message (Japanese)."
+          }
+        },
+        "required": [
+          "level",
+          "text"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "history": {
+      "type": "array",
+      "description": "Input power samples, watts, oldest first, one per telemetry change (max 120).",
+      "items": {
+        "type": "number",
+        "description": "Input power, W."
+      },
+      "maxItems": 120
+    },
+    "at": {
+      "type": "number",
+      "description": "When this was read. Unix time in seconds (float)."
+    },
+    "measured_at": {
+      "type": "number",
+      "description": "When the telemetry values last changed. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "connected",
+    "charging",
+    "full",
+    "percent",
+    "adapter",
+    "input",
+    "battery",
+    "charger",
+    "faults",
+    "alerts",
+    "history",
+    "at",
+    "measured_at"
+  ],
+  "additionalProperties": true
+}

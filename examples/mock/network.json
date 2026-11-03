@@ -1,0 +1,28 @@
+{
+  "home": {
+    "home": true,
+    "ip": "192.0.2.24"
+  },
+  "tailscale": {
+    "up": true,
+    "ip": "100.64.0.1"
+  },
+  "mounts": {
+    "Share": true,
+    "Media": false
+  },
+  "mountable": {
+    "Share": true,
+    "Media": true
+  },
+  "ping": {
+    "NAS": 2.8,
+    "ROUTER": 1.4,
+    "VPS": null
+  },
+  "speed": {
+    "dl": 912.4,
+    "ul": 455.1,
+    "at": 1793782800.0
+  }
+}

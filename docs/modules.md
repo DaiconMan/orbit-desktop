@@ -78,7 +78,7 @@ Notes:
 * **The `system.ping` and `system.speed` fields stay** for compatibility, and the same data also
   appears in `network`. They can be removed in API v2.
 * **Home detection is config, never hard-coded:** `providers.network.home: { ssid: "…" }` or
-  `{ subnet: "10.0.1.0/24" }`. With neither set, the home/away row is hidden.
+  `{ subnet: "192.168.1.0/24" }`. With neither set, the home/away row is hidden.
 * Every network-calling provider is **off by default**, except weather (as today). Each one is
   listed in `THIRD_PARTY_NOTICES.md` with its terms.
 
@@ -92,7 +92,7 @@ A **feed** is a folder in `~/.config/orbit-desktop/feeds/<id>/` holding:
 
 ```yaml
 # feed.yaml
-id: odenops-rfc
+id: team-rfc
 name: Pending RFCs
 version: 0.1.0
 run: ["./rfc.sh"]          # argv, run from the feed folder; no shell
@@ -102,12 +102,12 @@ max_bytes: 65536           # stdout larger than this is rejected
 ```
 
 * The host runs `run` on the interval. Stdout must be a single JSON value, which is published as
-  the signal `ext.odenops-rfc` to modules that list it in `needs:`.
+  the signal `ext.team-rfc` to modules that list it in `needs:`.
 * **Feeds are trusted code.** They run with your user account's rights, without a sandbox. They are
   therefore:
   * only loaded from your own config folder, never from `widgets/` and never bundled
   * listed with full paths in the problems panel the first time they run
-  * enabled only when `layout.yaml` names them (`feeds: [odenops-rfc]`)
+  * enabled only when `layout.yaml` names them (`feeds: [team-rfc]`)
 
   This is the same trust as a LaunchAgent you write yourself. `docs/security.md` gets a section
   on it.

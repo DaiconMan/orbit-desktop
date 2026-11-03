@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/mac.schema.json",
+  "title": "mac signal",
+  "description": "Battery, Time Machine, startup-disk space (pmset / tmutil / df every 30 s) and active input minutes today (providers.mac.active, ioreg HIDIdleTime sampled every 60 s, persisted per day). GET /api/signals/mac, polled every 30 s; 404 unless providers.mac.enabled. Battery and Time Machine keys are ABSENT on machines without them, and every key except `active` may be absent right after start-up. Not sensitive.",
+  "type": "object",
+  "properties": {
+    "ac": {
+      "type": "boolean",
+      "description": "True on AC power."
+    },
+    "batt": {
+      "type": "integer",
+      "description": "Battery charge, percent.",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "batt_state": {
+      "type": "string",
+      "description": "pmset state text: 'charging', 'discharging', 'charged', 'finishing charge', 'AC attached' …"
+    },
+    "batt_left": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Time remaining 'h:mm' (to empty or to full), null while pmset has no estimate."
+    },
+    "tm_running": {
+      "type": "boolean",
+      "description": "True while a Time Machine backup runs."
+    },
+    "tm_pct": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Progress of the running backup, percent, or null when not running / unknown.",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "tm_last": {
+      "type": "number",
+      "description": "End of the latest Time Machine backup. Unix time in seconds (float)."
+    },
+    "disk_total": {
+      "type": "integer",
+      "description": "Startup volume size, bytes.",
+      "minimum": 0
+    },
+    "disk_free": {
+      "type": "integer",
+      "description": "Startup volume space available, bytes.",
+      "minimum": 0
+    },
+    "active": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Active minutes today, or null when providers.mac.active is off / not sampled yet.",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Local date 'YYYY-MM-DD' the count belongs to."
+        },
+        "minutes": {
+          "type": "integer",
+          "description": "Minutes today with input within the previous 5 min.",
+          "minimum": 0
+        },
+        "idle": {
+          "type": "integer",
+          "description": "Seconds since the last keyboard/mouse input at the last sample.",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "date",
+        "minutes"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "active"
+  ],
+  "additionalProperties": true
+}

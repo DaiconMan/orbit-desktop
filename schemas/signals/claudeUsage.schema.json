@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/claudeUsage.schema.json",
+  "title": "claudeUsage signal",
+  "description": "UNOFFICIAL, opt-in (providers.claude_usage.enabled, else 404). Claude Code usage meters, read either from an undocumented cache field of ~/.claude.json (source 'cache', re-read every 30 s) or from the stdout of the user's own command (source 'command', every interval_minutes, min 2). GET /api/signals/claude-usage, polled every 30 s. Only percentages and reset times leave the server. May break at any time. SENSITIVE.",
+  "type": "object",
+  "properties": {
+    "rows": {
+      "type": "array",
+      "description": "One row per meter that has a number.",
+      "items": {
+        "type": "object",
+        "description": "A usage meter.",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Meter id.",
+            "enum": [
+              "five_hour",
+              "seven_day",
+              "seven_day_opus",
+              "seven_day_sonnet",
+              "seven_day_fable"
+            ]
+          },
+          "pct": {
+            "type": "number",
+            "description": "Utilisation, percent (0-100, may exceed 100 briefly).",
+            "minimum": 0
+          },
+          "resets": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When the meter resets, ISO 8601 with offset (may carry microseconds), or null."
+          }
+        },
+        "required": [
+          "key",
+          "pct"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "fetched": {
+      "type": "number",
+      "description": "When the numbers were produced (cache: fetchedAtMs/1000, 0 if unknown; command: run time). Unix time in seconds (float). Use it to mark stale data.",
+      "minimum": 0
+    },
+    "source": {
+      "type": "string",
+      "description": "Where the rows came from.",
+      "enum": [
+        "cache",
+        "command"
+      ]
+    },
+    "error": {
+      "type": "string",
+      "description": "Optional: why the command failed (rows then come from the cache). Short, never contains secrets."
+    }
+  },
+  "required": [
+    "rows",
+    "fetched"
+  ],
+  "additionalProperties": true
+}

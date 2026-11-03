@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/sessions.schema.json",
+  "title": "sessions signal",
+  "description": "Running local Claude Code sessions (live pids in ~/.claude/sessions/*.json), re-read every 15 s. Only each session's working-directory BASENAME leaves the server. GET /api/signals/sessions, polled every 15 s; 404 unless providers.sessions.enabled. No network. SENSITIVE (project folder names).",
+  "type": "object",
+  "properties": {
+    "local": {
+      "type": "array",
+      "description": "Live sessions (unordered).",
+      "items": {
+        "type": "object",
+        "description": "A session.",
+        "properties": {
+          "cwd": {
+            "type": "string",
+            "description": "Basename of the session's working directory."
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Session kind as recorded by Claude Code (e.g. 'interactive'), or null."
+          }
+        },
+        "required": [
+          "cwd"
+        ],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": [
+    "local"
+  ],
+  "additionalProperties": true
+}

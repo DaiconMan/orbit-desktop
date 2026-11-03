@@ -1,0 +1,14 @@
+{
+  "state": "stopped",
+  "source": "",
+  "key": "",
+  "title": "",
+  "artist": "",
+  "album": "",
+  "position": 0,
+  "duration": 0,
+  "hasArt": false,
+  "ts": 1793784600.0,
+  "artwork": null,
+  "recv": 1793784600000
+}

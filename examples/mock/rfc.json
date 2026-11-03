@@ -1,0 +1,15 @@
+{
+  "pending": [
+    {
+      "id": "42",
+      "name": "RFC-20261102-42-example-proposal",
+      "user_action": true
+    },
+    {
+      "id": "43",
+      "name": "RFC-20261103-43-another-proposal",
+      "user_action": false
+    }
+  ],
+  "at": 1793784300.0
+}

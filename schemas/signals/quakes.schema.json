@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/quakes.schema.json",
+  "title": "quakes signal",
+  "description": "Recent earthquakes in Japan (JMA reports via the P2P地震情報 API, code 551), newest first, within providers.quakes.hours and at or above min_intensity. Fetched every 60 s. GET /api/signals/quakes, polled every 60 s; 404 unless providers.quakes.enabled (opt-in network); null until the first fetch. The payload is an ARRAY. Not sensitive.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "description": "One earthquake.",
+    "properties": {
+      "ts": {
+        "type": "number",
+        "description": "Origin time. Unix time in seconds (float)."
+      },
+      "scale": {
+        "type": "integer",
+        "description": "Max observed intensity as a P2PQuake scale code: 10=1, 20=2, 30=3, 40=4, 45=5弱, 50=5強, 55=6弱, 60=6強, 70=7.",
+        "enum": [
+          10,
+          20,
+          30,
+          40,
+          45,
+          46,
+          50,
+          55,
+          60,
+          70
+        ]
+      },
+      "place": {
+        "type": "string",
+        "description": "Epicentre name (Japanese), '' if unknown."
+      },
+      "mag": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "description": "Magnitude, or null if unknown."
+      }
+    },
+    "required": [
+      "ts",
+      "scale",
+      "place",
+      "mag"
+    ],
+    "additionalProperties": true
+  }
+}

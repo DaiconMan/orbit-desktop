@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/cloud.schema.json",
+  "title": "cloud signal",
+  "description": "How much of each cloud-synced folder (OneDrive, Google Drive, Dropbox, iCloud-style File Provider folders under ~/Library/CloudStorage, or providers.cloud.folders) is really stored on this Mac. Walks the folders with lstat (never triggers downloads) every providers.cloud.interval_minutes. GET /api/signals/cloud, polled every 2 min; 404 unless providers.cloud.enabled; null until the first walk. SENSITIVE (folder / account names).",
+  "type": "object",
+  "properties": {
+    "folders": {
+      "type": "array",
+      "description": "One entry per existing folder.",
+      "items": {
+        "type": "object",
+        "description": "A cloud folder.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name ('OneDrive · Example' for 'OneDrive-Example' style folders)."
+          },
+          "used": {
+            "type": "integer",
+            "description": "Bytes allocated on this Mac (online-only placeholders count 0).",
+            "minimum": 0
+          },
+          "files": {
+            "type": "integer",
+            "description": "Files with local data (downloaded).",
+            "minimum": 0
+          },
+          "total_files": {
+            "type": "integer",
+            "description": "All files seen.",
+            "minimum": 0
+          },
+          "partial": {
+            "type": "boolean",
+            "description": "The walk hit its 120 s deadline; numbers are lower bounds."
+          }
+        },
+        "required": [
+          "name",
+          "used",
+          "files",
+          "total_files",
+          "partial"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "warn_bytes": {
+      "type": "integer",
+      "description": "providers.cloud.warn_gb in bytes: widgets warn above this.",
+      "minimum": 0
+    },
+    "disk_free": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Free space on the startup volume, bytes, or null.",
+      "minimum": 0
+    },
+    "at": {
+      "type": "number",
+      "description": "When the walk finished. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "folders",
+    "warn_bytes",
+    "disk_free",
+    "at"
+  ],
+  "additionalProperties": true
+}

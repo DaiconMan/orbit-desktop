@@ -1,0 +1,607 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/widget.schema.json",
+  "title": "Orbit Desktop plugin manifest (widget.yaml)",
+  "description": "The manifest every plugin folder (widgets/<id>/ or ~/.config/orbit-desktop/widgets/<id>/) carries next to widget.js and README.md. Mirrors load_manifest / validate_settings_schema in host/dev-server/orbit_config.py. Checks this schema cannot express: the id must equal the folder name and must not be a built-in background (color, gradient, image, video); widget.js (<= 512 KB) and README.md must exist; every asset must exist inside the folder and be <= 4 MB; reaction hooks in reactions.default must be keys of reactions.hooks; i18n.<locale>.settings may only label settings that exist.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,40}$",
+      "description": "Required. Unique plugin id: lower-case letters, digits and '-', 2-41 chars, starting with a letter or digit. Must equal the folder name; layout.yaml refers to it as `use:`."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required. Display name (English; translate via i18n)."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+([-+][0-9A-Za-z.-]+)?$",
+      "description": "Required. Semantic version of the plugin, e.g. \"1.0.0\" (quote it in YAML)."
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required. Author name or handle."
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Required. SPDX license identifier, e.g. MIT."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "background",
+        "widget"
+      ],
+      "description": "Required. `widget` (a positioned panel) or `background` (full-screen, behind every widget; may declare `reactions`)."
+    },
+    "description": {
+      "type": "string",
+      "description": "One-sentence summary shown in the layout editor's library."
+    },
+    "needs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "time",
+          "system",
+          "audio",
+          "nowPlaying",
+          "calendar",
+          "weather",
+          "location",
+          "claudeUsage",
+          "mac",
+          "network",
+          "alerts",
+          "iss",
+          "quakes",
+          "holidays",
+          "fx",
+          "news",
+          "bluetooth",
+          "onthisday",
+          "launches",
+          "kp",
+          "recent",
+          "contrib",
+          "github",
+          "sessions",
+          "rfc",
+          "cloud",
+          "power"
+        ]
+      },
+      "description": "Signals the plugin receives (see schemas/signals/index.json). The runtime forwards ONLY these to the plugin frame; anything else is rejected. No duplicates."
+    },
+    "settings": {
+      "type": "object",
+      "description": "User-tunable settings: snake_case name -> spec.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,40}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/setting"
+      }
+    },
+    "default_size": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Size the layout editor gives a newly added widget.",
+      "properties": {
+        "width": {
+          "anyOf": [
+            {
+              "const": "auto"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^-?\\d+(\\.\\d+)?(px|vh|vw|vmin|vmax|%|rem|em)?$"
+            }
+          ],
+          "description": "'auto' (fit content) or a CSS length."
+        },
+        "height": {
+          "anyOf": [
+            {
+              "const": "auto"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^-?\\d+(\\.\\d+)?(px|vh|vw|vmin|vmax|%|rem|em)?$"
+            }
+          ],
+          "description": "'auto' (fit content) or a CSS length."
+        }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(?!/)(?!(?:.*/)?\\.\\.(?:/|$))[A-Za-z0-9._/-]+\\.(?:[jJ][sS][oO][nN]|[tT][xX][tT]|[cC][sS][vV])$"
+      },
+      "description": "Data files inside the plugin folder (relative paths, .json/.txt/.csv, <= 4 MB each). Delivered parsed in the `init` message (`assets`) and at /plugins/<id>/assets/<path>."
+    },
+    "reactions": {
+      "type": "object",
+      "required": [
+        "hooks"
+      ],
+      "additionalProperties": true,
+      "description": "kind: background only. Named effects the background exposes, and which runtime reaction sources drive them by default (users can rewire them in layout.yaml).",
+      "properties": {
+        "hooks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "hook name -> what it does (shown in the editor)."
+        },
+        "default": {
+          "type": "object",
+          "description": "source -> hook or list of hooks. Sources are normalised 0..1.",
+          "propertyNames": {
+            "enum": [
+              "audio.bass",
+              "audio.high",
+              "audio.level",
+              "audio.mid",
+              "cpu",
+              "net"
+            ]
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "unofficial": {
+      "type": "boolean",
+      "description": "True when the plugin relies on undocumented / unofficial data (e.g. claudeUsage); the editor labels it. Default false."
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri",
+      "description": "Informational: project / documentation URL. Not interpreted by the host."
+    },
+    "min_runtime": {
+      "type": "string",
+      "description": "Informational: the oldest runtime / Provider API version the plugin supports. Accepted but not enforced yet."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "time",
+        "weather",
+        "system",
+        "dev",
+        "life",
+        "media"
+      ],
+      "description": "Library section in the layout editor (in display order: time, weather, system, dev, life, media)."
+    },
+    "i18n": {
+      "type": "object",
+      "description": "Translations: locale (e.g. ja) -> labels.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Translated name."
+          },
+          "description": {
+            "type": "string",
+            "description": "Translated description."
+          },
+          "settings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "setting name -> translated label (existing settings only)."
+          },
+          "options": {
+            "type": "object",
+            "description": "enum setting name -> {option value -> translated label}.",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "mount",
+          "music"
+        ]
+      },
+      "description": "Host-app actions the plugin's own buttons may request: `music` (play/pause/skip the player) and `mount` (toggle a NAS share: unmount it if mounted, else mount it again with the URL behind network.mountable)."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "version",
+    "author",
+    "license",
+    "kind"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "not": {
+          "properties": {
+            "kind": {
+              "const": "background"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "reactions"
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "setting": {
+      "type": "object",
+      "description": "One setting. The layout editor renders a control for it; layout.yaml values are type-checked against it and merged over `default`.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "boolean",
+            "color",
+            "enum",
+            "integer",
+            "length",
+            "list",
+            "number",
+            "string"
+          ],
+          "description": "string (<= 2000 chars) | number | integer | boolean | color (\"#46dcc8\", rgb()/rgba(), or a CSS colour name; quote it in YAML) | enum (one of `options`) | length (a number = px, or a CSS length like \"16vw\", \"2rem\", \"40%\") | list (<= 100 items, each checked against `items`)."
+        },
+        "default": {
+          "description": "Required. The value used when layout.yaml does not set one; must itself be valid for `type` (null is allowed and means 'unset')."
+        },
+        "description": {
+          "type": "string",
+          "description": "One line shown under the control in the layout editor (English; translate via i18n.<locale>.settings)."
+        },
+        "min": {
+          "type": "number",
+          "description": "number / integer only: smallest allowed value (inclusive)."
+        },
+        "max": {
+          "type": "number",
+          "description": "number / integer only: largest allowed value (inclusive)."
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "enum only (required, non-empty): the allowed values. Label them per locale with i18n.<locale>.options.<setting>.<value>."
+        },
+        "items": {
+          "$ref": "#/$defs/itemSpec",
+          "description": "list only: the spec every list element is checked against."
+        }
+      },
+      "required": [
+        "type",
+        "default"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "enum"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "options"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "string"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "number"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "integer"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "boolean"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "color"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(#[0-9a-fA-F]{3,8}|rgba?\\(\\s*[\\d.]+%?\\s*,\\s*[\\d.]+%?\\s*,\\s*[\\d.]+%?\\s*(,\\s*[\\d.]+\\s*)?\\)|[a-zA-Z]{3,20})$"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "length"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^-?\\d+(\\.\\d+)?(px|vh|vw|vmin|vmax|%|rem|em)?$"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "list"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "array",
+                    "maxItems": 100
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "itemSpec": {
+      "type": "object",
+      "description": "Element spec of a list setting: same keys as a setting; `default` is optional here.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "boolean",
+            "color",
+            "enum",
+            "integer",
+            "length",
+            "list",
+            "number",
+            "string"
+          ],
+          "description": "string (<= 2000 chars) | number | integer | boolean | color (\"#46dcc8\", rgb()/rgba(), or a CSS colour name; quote it in YAML) | enum (one of `options`) | length (a number = px, or a CSS length like \"16vw\", \"2rem\", \"40%\") | list (<= 100 items, each checked against `items`)."
+        },
+        "default": {
+          "description": "Required. The value used when layout.yaml does not set one; must itself be valid for `type` (null is allowed and means 'unset')."
+        },
+        "description": {
+          "type": "string",
+          "description": "One line shown under the control in the layout editor (English; translate via i18n.<locale>.settings)."
+        },
+        "min": {
+          "type": "number",
+          "description": "number / integer only: smallest allowed value (inclusive)."
+        },
+        "max": {
+          "type": "number",
+          "description": "number / integer only: largest allowed value (inclusive)."
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          },
+          "description": "enum only (required, non-empty): the allowed values. Label them per locale with i18n.<locale>.options.<setting>.<value>."
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/holidays.schema.json",
+  "title": "holidays signal",
+  "description": "Public holidays (country JP only for now, from holidays-jp.github.io), refreshed daily. GET /api/signals/holidays, polled every hour; 404 unless providers.holidays.enabled (opt-in network); null until the first fetch. Not sensitive.",
+  "type": "object",
+  "properties": {
+    "upcoming": {
+      "type": "array",
+      "description": "The next 5 holidays from today (inclusive), in date order.",
+      "items": {
+        "type": "object",
+        "description": "A holiday.",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Local date 'YYYY-MM-DD'.",
+            "format": "date"
+          },
+          "name": {
+            "type": "string",
+            "description": "Holiday name (Japanese)."
+          }
+        },
+        "required": [
+          "date",
+          "name"
+        ],
+        "additionalProperties": true
+      },
+      "maxItems": 5
+    },
+    "map": {
+      "type": "object",
+      "description": "'YYYY-MM-DD' -> holiday name, for about the 1st of last month .. +70 days (for calendar widgets).",
+      "additionalProperties": {
+        "type": "string",
+        "description": "Holiday name."
+      }
+    }
+  },
+  "required": [
+    "upcoming",
+    "map"
+  ],
+  "additionalProperties": true
+}

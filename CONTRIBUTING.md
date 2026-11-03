@@ -5,14 +5,14 @@ folders with no build step.
 
 ## Dev loop
 
-```sh
-python3 host/dev-server/orbit_server.py --port 47900 --config examples/layout.yaml
-open "http://127.0.0.1:47900/?demo"     # ?demo fakes CPU / network / audio / a playing track
-python3 tools/validate.py               # must print OK before you open a PR
-```
+The full guide is [docs/widgets.md](docs/widgets.md). AI agents: [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt).
 
-The page reloads by itself when a `widget.yaml` or the layout changes. Reload manually after
-editing `widget.js` or `style.css`. Plugin errors appear in the red panel at the top of the page.
+```sh
+python3 tools/new-widget.py my-widget --name "My Widget" --needs time,weather --category weather
+python3 tools/dev-widget.py my-widget            # preview with sample data; reloads on every save
+python3 tools/dev-widget.py my-widget --shot out.png
+python3 tools/validate.py                         # must print OK before you open a PR
+```
 
 ## Anatomy of a plugin
 
@@ -40,7 +40,7 @@ dropped into `~/.config/orbit-desktop/widgets/<id>/`. A bundled plugin with the 
 | `license` | ✓ | SPDX id; must be compatible with redistribution here (MIT, BSD, Apache-2.0, …) |
 | `kind` | ✓ | `widget` or `background` |
 | `description` | | one paragraph |
-| `needs` | | list of signals: `time`, `system`, `audio`, `nowPlaying`, `calendar`, `weather`, `location`, `claudeUsage`. **Only these reach your code.** |
+| `needs` | | list of signals (all of them: [schemas/signals/index.json](schemas/signals/index.json)). **Only these reach your code.** |
 | `settings` | | schema, see below |
 | `default_size` | | widgets: `{width, height}` CSS lengths or `auto` |
 | `assets` | | relative paths of data files the host loads and passes to you as `ctx.assets[path]` |

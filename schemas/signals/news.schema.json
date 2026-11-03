@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/news.schema.json",
+  "title": "news signal",
+  "description": "Headlines from the RSS 2.0 / Atom feed at providers.news.url, fetched every 15 min. GET /api/signals/news, polled every 10 min; 404 unless providers.news.enabled (opt-in network); null until the first fetch. Not sensitive.",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "description": "Headlines in feed order (newest first for most feeds), at most providers.news.max_items.",
+      "items": {
+        "type": "object",
+        "description": "A headline.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Headline text."
+          },
+          "at": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Publication time. Unix time in seconds (float). Null if the feed gives none."
+          }
+        },
+        "required": [
+          "title",
+          "at"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "at": {
+      "type": "number",
+      "description": "When the feed was fetched. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "items",
+    "at"
+  ],
+  "additionalProperties": true
+}

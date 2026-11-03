@@ -1,0 +1,407 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/weather.schema.json",
+  "title": "weather signal",
+  "description": "Open-Meteo forecast for the configured location (no API key, CC BY 4.0: show `attribution`). GET /api/signals/weather, polled every 60 s; the server refreshes upstream every providers.weather.refresh_minutes. 404 when providers.weather.enabled is false; null until the first fetch (the runtime does not forward null). Coordinates are deliberately absent. Upstream fields are passed through as Open-Meteo returns them (local times without offset, in `timezone`). `place` is the user's place name.",
+  "type": "object",
+  "properties": {
+    "current": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Current conditions.",
+      "properties": {
+        "time": {
+          "type": "string",
+          "description": "Local time of the observation slot, 'YYYY-MM-DDTHH:MM'."
+        },
+        "interval": {
+          "type": "integer",
+          "description": "Slot length in seconds (900)."
+        },
+        "temperature_2m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Air temperature at 2 m, °C."
+        },
+        "weather_code": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "WMO weather code (0 clear … 99 thunderstorm with hail)."
+        },
+        "is_day": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "1 in daylight, 0 at night.",
+          "enum": [
+            0,
+            1,
+            null
+          ]
+        }
+      },
+      "required": [
+        "time"
+      ],
+      "additionalProperties": true
+    },
+    "current_units": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Units of `current` (e.g. temperature_2m: '°C').",
+      "properties": {},
+      "additionalProperties": true
+    },
+    "hourly": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Next 12 hours, parallel arrays.",
+      "properties": {
+        "time": {
+          "type": "array",
+          "description": "Local hour starts 'YYYY-MM-DDTHH:MM'.",
+          "items": {
+            "type": "string",
+            "description": "Local time."
+          }
+        },
+        "temperature_2m": {
+          "type": "array",
+          "description": "°C per hour.",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "°C."
+          }
+        },
+        "weather_code": {
+          "type": "array",
+          "description": "WMO code per hour.",
+          "items": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "WMO code."
+          }
+        },
+        "precipitation_probability": {
+          "type": "array",
+          "description": "Chance of precipitation per hour, percent.",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Percent 0-100."
+          }
+        }
+      },
+      "required": [
+        "time"
+      ],
+      "additionalProperties": true
+    },
+    "hourly_units": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Units of `hourly`.",
+      "properties": {},
+      "additionalProperties": true
+    },
+    "daily": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Next 5 days, parallel arrays.",
+      "properties": {
+        "time": {
+          "type": "array",
+          "description": "Local dates 'YYYY-MM-DD'.",
+          "items": {
+            "type": "string",
+            "description": "Date."
+          }
+        },
+        "weather_code": {
+          "type": "array",
+          "description": "WMO code per day.",
+          "items": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "WMO code."
+          }
+        },
+        "temperature_2m_max": {
+          "type": "array",
+          "description": "Daily max, °C.",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "°C."
+          }
+        },
+        "temperature_2m_min": {
+          "type": "array",
+          "description": "Daily min, °C.",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "°C."
+          }
+        },
+        "precipitation_probability_max": {
+          "type": "array",
+          "description": "Max chance of precipitation, percent.",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Percent."
+          }
+        },
+        "sunrise": {
+          "type": "array",
+          "description": "Local sunrise 'YYYY-MM-DDTHH:MM'.",
+          "items": {
+            "type": "string",
+            "description": "Local time."
+          }
+        },
+        "sunset": {
+          "type": "array",
+          "description": "Local sunset 'YYYY-MM-DDTHH:MM'.",
+          "items": {
+            "type": "string",
+            "description": "Local time."
+          }
+        },
+        "uv_index_max": {
+          "type": "array",
+          "description": "Max UV index.",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "UV index."
+          }
+        }
+      },
+      "required": [
+        "time"
+      ],
+      "additionalProperties": true
+    },
+    "daily_units": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Units of `daily`.",
+      "properties": {},
+      "additionalProperties": true
+    },
+    "minutely_15": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Next 2 hours in 15-minute steps (8 values).",
+      "properties": {
+        "time": {
+          "type": "array",
+          "description": "Local slot starts.",
+          "items": {
+            "type": "string",
+            "description": "Local time."
+          }
+        },
+        "precipitation": {
+          "type": "array",
+          "description": "Precipitation per slot, mm.",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "mm."
+          }
+        }
+      },
+      "required": [
+        "time"
+      ],
+      "additionalProperties": true
+    },
+    "minutely_15_units": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Units of `minutely_15`.",
+      "properties": {},
+      "additionalProperties": true
+    },
+    "timezone": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "IANA zone of the location, e.g. 'Europe/London'."
+    },
+    "timezone_abbreviation": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Zone abbreviation, e.g. 'GMT' or 'GMT+9'."
+    },
+    "utc_offset_seconds": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "Offset of the local times from UTC, seconds."
+    },
+    "elevation": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Elevation of the grid cell, metres."
+    },
+    "place": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Display name of the location (providers.location.name or a geocoded name), e.g. 'GREENWICH · LONDON'."
+    },
+    "place_src": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Where the location came from.",
+      "enum": [
+        "config",
+        "corelocation",
+        "ip",
+        null
+      ]
+    },
+    "fetched": {
+      "type": "number",
+      "description": "When the forecast was fetched. Unix time in seconds (float)."
+    },
+    "attribution": {
+      "type": "string",
+      "description": "Required attribution text; show it."
+    },
+    "air": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Air quality (providers.weather.air), null when disabled or not fetched.",
+      "properties": {
+        "pm25": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "PM2.5, µg/m³.",
+          "minimum": 0
+        },
+        "aqi": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "US AQI.",
+          "minimum": 0
+        },
+        "at": {
+          "type": "number",
+          "description": "Fetched at. Unix time in seconds (float)."
+        }
+      },
+      "required": [
+        "pm25",
+        "aqi",
+        "at"
+      ],
+      "additionalProperties": true
+    },
+    "pressure": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Surface pressure (providers.weather.pressure), hourly, past 12 h + next 24 h; null when disabled or not fetched.",
+      "properties": {
+        "time": {
+          "type": "array",
+          "description": "Local hour starts.",
+          "items": {
+            "type": "string",
+            "description": "Local time."
+          }
+        },
+        "hpa": {
+          "type": "array",
+          "description": "Surface pressure per hour, hPa.",
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "hPa."
+          }
+        },
+        "at": {
+          "type": "number",
+          "description": "Fetched at. Unix time in seconds (float)."
+        }
+      },
+      "required": [
+        "time",
+        "hpa",
+        "at"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "fetched",
+    "attribution",
+    "place",
+    "air",
+    "pressure"
+  ],
+  "additionalProperties": true
+}

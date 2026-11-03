@@ -8,30 +8,27 @@ On top sit widgets for time, weather, system stats, now playing, today's schedul
 Everything is a plugin, configured in one YAML file, and every plugin runs in a **sandboxed,
 network-less frame**, so community widgets can't phone home with your calendar.
 
-> Status: **developer preview.** A small Swift menu-bar app (`host/app`) shows the page on the
-> desktop and measures system stats, audio and calendar natively. It runs the Python dev server
-> as a child process. You can still use the dev server alone with
-> [Plash](https://github.com/sindresorhus/Plash).
+> Status: **early release** (macOS 14+, build from source). A Swift menu-bar app shows the wallpaper on every
+> screen, provides the data and has a drag-and-drop layout editor.
 
-<!-- Screenshots: docs/images/desktop.png, docs/images/demo.gif (to be added) -->
-_Screenshots coming soon._
+![Orbit Desktop](docs/images/desktop.jpg)
 
 ## Features
-* **Starfield background**:
-  * real stars (magnitude ≤ 6) placed for your location and time
-  * the Milky Way, planets and the Moon with its current phase, Sgr A*
-  * meteors, network streamlines, an occasional UFO
-* **Widgets**: `clock`, `weather` (Open-Meteo), `system-stats` (sparklines, ping, speed test),
-  `now-playing` (Apple Music / Spotify, with the accent colour taken from the artwork),
-  `schedule` (calendar gantt), and `claude-usage` (unofficial, opt-in).
-* **Config-only backgrounds**: `color`, `gradient`, `image`, `video` (local file).
-* **Reactions**: map signals to background effects in YAML, e.g. `react: { audio.bass: glow, cpu: meteors }`.
-* **Plugin sandbox**:
-  * opaque-origin iframes with `default-src 'none'`
-  * data passed only by `postMessage`, and only the signals a plugin declares in `needs:`
-  * see [docs/security.md](docs/security.md)
-* **Friendly errors**: config mistakes appear on the desktop with the exact key and fix. Save
-  the file and the desktop reloads.
+* **Starfield background:** real stars (magnitude ≤ 6) for your location and time, the Milky Way, planets, the Moon
+  with its phase, the ISS and meteor-shower radiants. CPU → twinkle and meteors, network → streamlines, bass → glow.
+* **30 widgets**, each a calm module: clock, weather (with air quality, rain nowcast, pressure), load, home network
+  (Tailscale, NAS shares you can mount with a click), USB-C power input with USB PD details, Mac (battery, Time
+  Machine), cloud-folder usage, schedule timeline, week, month, now playing with playback buttons, recent tracks,
+  tonight's sky, sky chart, world clock, holidays / FX / earthquakes, news, ISS, space weather, rocket launches,
+  GitHub, Bluetooth devices, and more. All network and personal data sources are **off by default**.
+* **Customise with the mouse:** ✦ → レイアウトを編集… opens an editor on the desktop itself. It has a library of
+  widgets, an inspector with each widget's settings and data sources, drag / resize with snapping guides, smart-stack
+  style rotation in any place, click actions (open an app or URL, run a Shortcut or script, control music),
+  undo and preview.
+* **Earthquake Early Warning** (Japan, P2P地震情報): a banner above every app, a notification and an optional music pause.
+* **Plugin sandbox:** widgets run in opaque-origin iframes with a `default-src 'none'` CSP and get only the signals
+  they declare in `needs:` ([docs/security.md](docs/security.md)).
+* **Build your own widget in minutes**, by hand or with an AI agent: see [Writing widgets](#writing-widgets).
 
 ## Quick start (host app)
 
@@ -89,10 +86,24 @@ widgets:
     position: { anchor: bottom-left, x: 6vw, y: 11vh }
 ```
 
-## Writing widgets & backgrounds
-A plugin is a folder holding `widget.yaml`, `widget.js`, an optional `style.css` and a
-`README.md`, with no build step. See [CONTRIBUTING.md](CONTRIBUTING.md) for the manifest
-reference, the SDK, examples and the PR review checklist.
+## Writing widgets
+A widget is a folder (`widget.yaml` + `widget.js` + optional `style.css`) with no build step:
+
+```sh
+python3 tools/new-widget.py tide --name "Tide" --needs time,weather --category weather
+python3 tools/dev-widget.py tide           # live preview with sample data, no permissions needed
+python3 tools/validate.py
+```
+
+* Guide: [docs/widgets.md](docs/widgets.md)
+* For AI agents: [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt)
+* Machine-readable contracts:
+  * SDK types: [runtime/sdk/orbit-sdk.d.ts](runtime/sdk/orbit-sdk.d.ts)
+  * manifest schema: [schemas/widget.schema.json](schemas/widget.schema.json)
+  * one schema per signal: [schemas/signals/](schemas/signals/)
+  * sample data: [examples/mock/](examples/mock/)
+
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Architecture
 
@@ -108,16 +119,11 @@ layout.yaml ──► Orbit Desktop.app (Swift): desktop windows, native system 
 ```
 
 ## Roadmap
-* **Phase 1 (this):** plugin architecture, sandbox, YAML config, Python dev server, Plash.
-* **Phase 2 – Swift host app** (`host/app`, in progress):
-  * done: desktop-level windows with WKWebView, a menu-bar item, a child-process server
-  * done: native system stats, a Core Audio tap and EventKit
-  * done: a `WKContentRuleList` blocking all non-loopback loads, and WebRTC switched off
-  * next: CoreLocation, now playing, a 20 fps background budget, a layout UI
-* **Phase 3 – distribution:** a Homebrew cask, then a signed and notarized build (Developer ID).
-  Auto-update after that.
-* Later: a plugin gallery, per-plugin permission prompts for sensitive signals, multi-display
-  layouts.
+* **Done:** plugin architecture and sandbox, Swift host app (desktop windows, native providers, EEW), the
+  layout editor, 30 widgets, the widget SDK with schemas and AI-readable docs.
+* **Next:** user-installable feeds (personal data sources), English UI strings for every widget, CoreLocation,
+  a Homebrew cask, then a signed and notarized build.
+* **Later:** a plugin gallery, per-plugin permission prompts for sensitive signals, per-display layouts.
 
 ## License
 MIT © DaiconMan. Third-party data and services are listed in

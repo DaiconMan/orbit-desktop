@@ -1,0 +1,272 @@
+[
+  {
+    "name": "time",
+    "path": "runtime",
+    "interval_ms": 1000,
+    "schema": "time.schema.json",
+    "mock": "../../examples/mock/time.json",
+    "sensitive": false,
+    "provider": null,
+    "description": "Clock tick (1 Hz) with locale / time zone"
+  },
+  {
+    "name": "system",
+    "path": "/api/signals/system",
+    "interval_ms": 2000,
+    "schema": "system.schema.json",
+    "mock": "../../examples/mock/system.json",
+    "sensitive": false,
+    "provider": null,
+    "description": "CPU, memory, disk I/O, network throughput, ping targets, speed test"
+  },
+  {
+    "name": "audio",
+    "path": "/api/stream/audio",
+    "interval_ms": 50,
+    "schema": "audio.schema.json",
+    "mock": "../../examples/mock/audio.json",
+    "sensitive": false,
+    "provider": null,
+    "description": "System-audio spectrum (level, bass, mid, high, 16 bands), ~20 Hz"
+  },
+  {
+    "name": "nowPlaying",
+    "path": "/api/signals/now-playing",
+    "interval_ms": 2000,
+    "schema": "nowPlaying.schema.json",
+    "mock": "../../examples/mock/nowPlaying.json",
+    "sensitive": true,
+    "provider": "now_playing",
+    "description": "Current track from Apple Music / Spotify incl. artwork (data: URL)"
+  },
+  {
+    "name": "calendar",
+    "path": "/api/signals/calendar",
+    "interval_ms": 30000,
+    "schema": "calendar.schema.json",
+    "mock": "../../examples/mock/calendar.json",
+    "sensitive": true,
+    "provider": null,
+    "description": "Today's and tomorrow's calendar events (title, time, colour, calendar name)"
+  },
+  {
+    "name": "weather",
+    "path": "/api/signals/weather",
+    "interval_ms": 60000,
+    "schema": "weather.schema.json",
+    "mock": "../../examples/mock/weather.json",
+    "sensitive": false,
+    "provider": "weather",
+    "description": "Open-Meteo forecast for the configured location + place name"
+  },
+  {
+    "name": "location",
+    "path": "/api/signals/location",
+    "interval_ms": 60000,
+    "schema": "location.schema.json",
+    "mock": "../../examples/mock/location.json",
+    "sensitive": true,
+    "provider": null,
+    "description": "Latitude / longitude / place name"
+  },
+  {
+    "name": "claudeUsage",
+    "path": "/api/signals/claude-usage",
+    "interval_ms": 30000,
+    "schema": "claudeUsage.schema.json",
+    "mock": "../../examples/mock/claudeUsage.json",
+    "sensitive": true,
+    "provider": "claude_usage",
+    "description": "UNOFFICIAL: Claude Code usage meters from ~/.claude.json (opt-in)"
+  },
+  {
+    "name": "mac",
+    "path": "/api/signals/mac",
+    "interval_ms": 30000,
+    "schema": "mac.schema.json",
+    "mock": "../../examples/mock/mac.json",
+    "sensitive": false,
+    "provider": "mac",
+    "description": "Battery, Time Machine, free disk space, active (input) minutes today"
+  },
+  {
+    "name": "network",
+    "path": "/api/signals/network",
+    "interval_ms": 5000,
+    "schema": "network.schema.json",
+    "mock": "../../examples/mock/network.json",
+    "sensitive": true,
+    "provider": "network",
+    "description": "Home/away, Tailscale, NAS mounts, ping targets, line speed"
+  },
+  {
+    "name": "alerts",
+    "path": "/api/signals/alerts",
+    "interval_ms": 1000,
+    "schema": "alerts.schema.json",
+    "mock": "../../examples/mock/alerts.json",
+    "sensitive": false,
+    "provider": null,
+    "description": "Earthquake Early Warning and tsunami warnings (host app, JP)"
+  },
+  {
+    "name": "iss",
+    "path": "/api/signals/iss",
+    "interval_ms": 10000,
+    "schema": "iss.schema.json",
+    "mock": "../../examples/mock/iss.json",
+    "sensitive": false,
+    "provider": "iss",
+    "description": "ISS position (lat/lon/altitude), opt-in network"
+  },
+  {
+    "name": "quakes",
+    "path": "/api/signals/quakes",
+    "interval_ms": 60000,
+    "schema": "quakes.schema.json",
+    "mock": "../../examples/mock/quakes.json",
+    "sensitive": false,
+    "provider": "quakes",
+    "description": "Recent earthquakes (JMA via P2PQuake, JP), opt-in network"
+  },
+  {
+    "name": "holidays",
+    "path": "/api/signals/holidays",
+    "interval_ms": 3600000,
+    "schema": "holidays.schema.json",
+    "mock": "../../examples/mock/holidays.json",
+    "sensitive": false,
+    "provider": "holidays",
+    "description": "Upcoming public holidays, opt-in network"
+  },
+  {
+    "name": "fx",
+    "path": "/api/signals/fx",
+    "interval_ms": 1800000,
+    "schema": "fx.schema.json",
+    "mock": "../../examples/mock/fx.json",
+    "sensitive": false,
+    "provider": "fx",
+    "description": "Exchange rate with previous value, opt-in network"
+  },
+  {
+    "name": "news",
+    "path": "/api/signals/news",
+    "interval_ms": 600000,
+    "schema": "news.schema.json",
+    "mock": "../../examples/mock/news.json",
+    "sensitive": false,
+    "provider": "news",
+    "description": "News headlines from an RSS feed, opt-in network"
+  },
+  {
+    "name": "bluetooth",
+    "path": "/api/signals/bluetooth",
+    "interval_ms": 120000,
+    "schema": "bluetooth.schema.json",
+    "mock": "../../examples/mock/bluetooth.json",
+    "sensitive": true,
+    "provider": "bluetooth",
+    "description": "Connected Bluetooth devices with battery levels"
+  },
+  {
+    "name": "onthisday",
+    "path": "/api/signals/onthisday",
+    "interval_ms": 600000,
+    "schema": "onthisday.schema.json",
+    "mock": "../../examples/mock/onthisday.json",
+    "sensitive": false,
+    "provider": "onthisday",
+    "description": "On this day: events and observances (Wikipedia), opt-in network"
+  },
+  {
+    "name": "launches",
+    "path": "/api/signals/launches",
+    "interval_ms": 1800000,
+    "schema": "launches.schema.json",
+    "mock": "../../examples/mock/launches.json",
+    "sensitive": false,
+    "provider": "launches",
+    "description": "Upcoming rocket launches (The Space Devs), opt-in network"
+  },
+  {
+    "name": "kp",
+    "path": "/api/signals/kp",
+    "interval_ms": 1800000,
+    "schema": "kp.schema.json",
+    "mock": "../../examples/mock/kp.json",
+    "sensitive": false,
+    "provider": "kp",
+    "description": "Planetary Kp index (NOAA SWPC), opt-in network"
+  },
+  {
+    "name": "recent",
+    "path": "/api/signals/recent",
+    "interval_ms": 10000,
+    "schema": "recent.schema.json",
+    "mock": "../../examples/mock/recent.json",
+    "sensitive": true,
+    "provider": "recent",
+    "description": "Recently played tracks (local history of nowPlaying)"
+  },
+  {
+    "name": "contrib",
+    "path": "/api/signals/contrib",
+    "interval_ms": 1800000,
+    "schema": "contrib.schema.json",
+    "mock": "../../examples/mock/contrib.json",
+    "sensitive": true,
+    "provider": "contrib",
+    "description": "GitHub contribution calendar (via gh), opt-in"
+  },
+  {
+    "name": "github",
+    "path": "/api/signals/github",
+    "interval_ms": 300000,
+    "schema": "github.schema.json",
+    "mock": "../../examples/mock/github.json",
+    "sensitive": true,
+    "provider": "github",
+    "description": "GitHub review requests and my PRs with CI state (via gh), opt-in"
+  },
+  {
+    "name": "sessions",
+    "path": "/api/signals/sessions",
+    "interval_ms": 15000,
+    "schema": "sessions.schema.json",
+    "mock": "../../examples/mock/sessions.json",
+    "sensitive": true,
+    "provider": "sessions",
+    "description": "Local Claude Code sessions (cwd basenames), opt-in"
+  },
+  {
+    "name": "rfc",
+    "path": "/api/signals/rfc",
+    "interval_ms": 600000,
+    "schema": "rfc.schema.json",
+    "mock": "../../examples/mock/rfc.json",
+    "sensitive": true,
+    "provider": "rfc",
+    "description": "Documents awaiting approval in a GitHub repo (via gh), opt-in, personal"
+  },
+  {
+    "name": "cloud",
+    "path": "/api/signals/cloud",
+    "interval_ms": 120000,
+    "schema": "cloud.schema.json",
+    "mock": "../../examples/mock/cloud.json",
+    "sensitive": true,
+    "provider": "cloud",
+    "description": "Local disk usage of cloud-synced folders (OneDrive, iCloud-style File Provider folders)"
+  },
+  {
+    "name": "power",
+    "path": "/api/signals/power",
+    "interval_ms": 3000,
+    "schema": "power.schema.json",
+    "mock": "../../examples/mock/power.json",
+    "sensitive": false,
+    "provider": "power",
+    "description": "USB-C power input: adapter, USB PD offers / contract, input W·V·A, battery charging, warning signs"
+  }
+]

@@ -1,0 +1,56 @@
+{
+  "eew": {
+    "id": "20261104092812",
+    "serial": "3",
+    "recv": 1793784592.0,
+    "origin": 1793784580.0,
+    "place": "茨城県南部",
+    "mag": 5.4,
+    "depth": 50,
+    "condition": "",
+    "maxscale": 50,
+    "areas": [
+      {
+        "pref": "茨城県",
+        "name": "茨城県南部",
+        "from": 45,
+        "to": 50,
+        "kind": "11"
+      },
+      {
+        "pref": "千葉県",
+        "name": "千葉県北西部",
+        "from": 40,
+        "to": 45,
+        "kind": "10"
+      }
+    ],
+    "cancelled": false,
+    "test": true,
+    "music": {
+      "eligible": false,
+      "local": false,
+      "strong": false,
+      "prefs": [
+        "東京都"
+      ],
+      "dry": true,
+      "paused": []
+    }
+  },
+  "tsunami": null,
+  "ws": {
+    "connected": true,
+    "since": 1793777400.0,
+    "msgs": 4,
+    "last": 1793784592.0
+  },
+  "pref": {
+    "names": [
+      "東京都"
+    ],
+    "src": "gsi"
+  },
+  "eewEnabled": true,
+  "ts": 1793784600.0
+}

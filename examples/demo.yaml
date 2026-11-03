@@ -1,0 +1,28 @@
+# Demo layout: every widget fed by the sample data in examples/mock/all.json (no personal data, no permissions).
+#   python3 host/dev-server/orbit_server.py --port 47960 --config examples/demo.yaml --mock examples/mock/all.json --no-user-settings
+#   open http://127.0.0.1:47960/
+version: 1
+theme: { locale: ja-JP }
+background:
+  use: starfield
+  settings: { ufo: false }
+widgets:
+  - { use: weather,   position: { anchor: top-left,  x: 6vw,  y: 6vh, width: 21vw } }
+  - { use: tonight,   position: { anchor: top-left,  x: 30.5vw, y: 6vh, width: 16vw } }
+  - { use: week,      position: { anchor: top-left,  x: 49.5vw, y: 6vh, width: 16vw } }
+  - { use: load,      position: { anchor: top-right, x: 6vw,  y: 6vh, width: 25vw } }
+  - { use: homenet,   position: { anchor: top-right, x: 6vw,  y: 27vh, width: 25vw } }
+  - { use: power,     position: { anchor: top-left,  x: 45vw, y: 30vh, width: 20.5vw } }
+  - use: now-playing
+    position: { anchor: bottom-left, x: 6vw, y: 29vh }
+  - use: clock
+    position: { anchor: bottom-left, x: 6vw, y: 7.8vh }
+  - use: schedule
+    position: { anchor: bottom-right, x: 2vw, y: 4vh, width: 62vw }
+    settings: { bleed: 4 }
+providers:
+  location: { mode: fixed, lat: 51.4779, lon: -0.0015, name: "GREENWICH" }
+  iss: { enabled: true }
+  power: { enabled: true }
+  holidays: { enabled: true }
+  network: { enabled: true }

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/bluetooth.schema.json",
+  "title": "bluetooth signal",
+  "description": "Bluetooth devices from system_profiler, refreshed every 5 min. GET /api/signals/bluetooth, polled every 2 min; 404 unless providers.bluetooth.enabled; null until the first read. SENSITIVE (device names).",
+  "type": "object",
+  "properties": {
+    "devices": {
+      "type": "array",
+      "description": "Connected devices.",
+      "items": {
+        "type": "object",
+        "description": "A connected device.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Device name as set by the user."
+          },
+          "type": {
+            "type": "string",
+            "description": "Minor type, e.g. 'Headphones', 'Keyboard', 'Mouse' ('' if unknown)."
+          },
+          "battery": {
+            "type": "object",
+            "description": "Battery levels in percent; only the keys the device reports are present.",
+            "properties": {
+              "main": {
+                "type": "integer",
+                "description": "Single battery, percent.",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "L": {
+                "type": "integer",
+                "description": "Left earbud, percent.",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "R": {
+                "type": "integer",
+                "description": "Right earbud, percent.",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "case": {
+                "type": "integer",
+                "description": "Charging case, percent.",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "battery"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "paired": {
+      "type": "array",
+      "description": "Paired but not connected devices (names and types only).",
+      "items": {
+        "type": "object",
+        "description": "A paired device.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Device name."
+          },
+          "type": {
+            "type": "string",
+            "description": "Minor type ('' if unknown)."
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "at": {
+      "type": "number",
+      "description": "When it was read. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "devices",
+    "at"
+  ],
+  "additionalProperties": true
+}

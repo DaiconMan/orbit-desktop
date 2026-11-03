@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/nowPlaying.schema.json",
+  "title": "nowPlaying signal",
+  "description": "Current track from Apple Music or Spotify (AppleScript to an already-running player). GET /api/signals/now-playing, polled every 2 s by the runtime, which adds `artwork` and `recv` before forwarding to plugins. 404 when providers.now_playing.enabled is false. Artwork comes from the player; the iTunes Search fallback (providers.now_playing.itunes_artwork_fallback) is off by default. SENSITIVE (listening habits). If the poll fails the runtime forwards just {state: 'stopped', recv, artwork: null}.",
+  "type": "object",
+  "properties": {
+    "state": {
+      "type": "string",
+      "description": "Player state.",
+      "enum": [
+        "playing",
+        "paused",
+        "stopped"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "description": "Player the track comes from; '' before anything played, 'demo' in the runtime's ?demo mode.",
+      "enum": [
+        "music",
+        "spotify",
+        "demo",
+        ""
+      ]
+    },
+    "key": {
+      "type": "string",
+      "description": "Opaque id (12 hex chars) that changes whenever the track changes; '' when nothing played yet."
+    },
+    "title": {
+      "type": "string",
+      "description": "Track title."
+    },
+    "artist": {
+      "type": "string",
+      "description": "Artist."
+    },
+    "album": {
+      "type": "string",
+      "description": "Album."
+    },
+    "position": {
+      "type": "number",
+      "description": "Playback position in seconds.",
+      "minimum": 0
+    },
+    "duration": {
+      "type": "number",
+      "description": "Track length in seconds (0 when unknown).",
+      "minimum": 0
+    },
+    "hasArt": {
+      "type": "boolean",
+      "description": "True when /api/signals/artwork has an image for this key."
+    },
+    "ts": {
+      "type": "number",
+      "description": "When the server last read the player. Unix time in seconds (float). 0 before the first read.",
+      "minimum": 0
+    },
+    "artwork": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Added by the runtime: artwork as a data:image/jpeg;base64 URL (max 600 px), or null when there is none or the player is stopped. Absent in the raw HTTP response."
+    },
+    "recv": {
+      "type": "number",
+      "description": "Added by the runtime: when it received this poll, Unix time in MILLISECONDS. Absent in the raw HTTP response.",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "state"
+  ],
+  "additionalProperties": true
+}

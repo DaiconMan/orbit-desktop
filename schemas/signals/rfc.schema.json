@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/rfc.schema.json",
+  "title": "rfc signal",
+  "description": "Documents awaiting approval in a GitHub repo (providers.rfc: repo, dir, file_prefix, status_label, pending_text), read with gh every 10 min. GET /api/signals/rfc, polled every 10 min; 404 unless providers.rfc.enabled (opt-in, personal workflow); null until the first fetch. SENSITIVE (document names).",
+  "type": "object",
+  "properties": {
+    "pending": {
+      "type": "array",
+      "description": "Documents (among the newest 25 matching files) whose status row contains pending_text.",
+      "items": {
+        "type": "object",
+        "description": "A pending document.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The number after '<prefix>YYYYMMDD-' in the file name, else the name."
+          },
+          "name": {
+            "type": "string",
+            "description": "File name without '.md'."
+          },
+          "user_action": {
+            "type": "boolean",
+            "description": "The status also contains providers.rfc.user_action_text (waiting on you)."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "user_action"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "at": {
+      "type": "number",
+      "description": "When it was checked. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "pending",
+    "at"
+  ],
+  "additionalProperties": true
+}

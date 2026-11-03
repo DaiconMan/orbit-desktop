@@ -23,6 +23,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Validate manifests and example config
         run: python3 tools/validate.py
+      - name: Check signal schemas and sample data
+        run: python3 schemas/check.py
       - name: Byte-compile host code
         run: python3 -m py_compile host/dev-server/*.py tools/validate.py
 

@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/system.schema.json",
+  "title": "system signal",
+  "description": "Machine load: CPU, memory, disk I/O, network throughput, ping targets and the last speed test. GET /api/signals/system, polled every 2 s. cpu/load/mem/disk/net are measured natively by the host app (SystemProvider.swift, host-dir/system.json) or by the dev server's own loops; ping comes from providers.ping, speed from providers.speedtest (off by default). Any measured field may be null during warm-up or when the host app's file is stale (>10 s). Not sensitive, but ping keys are the user's own target names.",
+  "type": "object",
+  "properties": {
+    "cpu": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "CPU busy share of total machine capacity, percent 0-100.",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "load": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "1-minute load average (getloadavg).",
+      "minimum": 0
+    },
+    "mem": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Memory in use (active + wired + compressed, like Activity Monitor 'Memory Used').",
+      "properties": {
+        "used": {
+          "type": "integer",
+          "description": "Bytes in use.",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "description": "Physical memory in bytes.",
+          "minimum": 0
+        },
+        "pct": {
+          "type": "number",
+          "description": "used / total, percent 0-100.",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "used",
+        "total",
+        "pct"
+      ],
+      "additionalProperties": true
+    },
+    "disk": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Disk throughput.",
+      "properties": {
+        "mbs": {
+          "type": "number",
+          "description": "Read + write over all block devices, MB/s (MiB/s in the host app).",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "mbs"
+      ],
+      "additionalProperties": true
+    },
+    "net": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Throughput on the default-route interface.",
+      "properties": {
+        "rx": {
+          "type": "number",
+          "description": "Received, bytes per second.",
+          "minimum": 0
+        },
+        "tx": {
+          "type": "number",
+          "description": "Sent, bytes per second.",
+          "minimum": 0
+        },
+        "iface": {
+          "type": "string",
+          "description": "BSD interface name, e.g. 'en0'."
+        }
+      },
+      "required": [
+        "rx",
+        "tx",
+        "iface"
+      ],
+      "additionalProperties": true
+    },
+    "ping": {
+      "type": "object",
+      "description": "Latency per providers.ping target name (and names from providers.ping.external_file): milliseconds, or null when unreachable. Empty when no targets are set.",
+      "additionalProperties": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "description": "Round-trip / TCP-connect time in ms, null = unreachable.",
+        "minimum": 0
+      }
+    },
+    "speed": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Last networkQuality speed test (providers.speedtest), null if none has run.",
+      "properties": {
+        "dl": {
+          "type": "number",
+          "description": "Download, Mbps.",
+          "minimum": 0
+        },
+        "ul": {
+          "type": "number",
+          "description": "Upload, Mbps.",
+          "minimum": 0
+        },
+        "at": {
+          "type": "number",
+          "description": "When it ran. Unix time in seconds (float)."
+        }
+      },
+      "required": [
+        "dl",
+        "ul",
+        "at"
+      ],
+      "additionalProperties": true
+    },
+    "ts": {
+      "type": "number",
+      "description": "When cpu/load/mem/net were sampled. Unix time in seconds (float). 0 before the first sample.",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "cpu",
+    "load",
+    "mem",
+    "disk",
+    "net",
+    "ping",
+    "speed"
+  ],
+  "additionalProperties": true
+}

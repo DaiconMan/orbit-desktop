@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/calendar.schema.json",
+  "title": "calendar signal",
+  "description": "Calendar events read by the host app via EventKit (CalendarProvider.swift): from the start of today to 8 days later, sorted by start, rewritten every 5 min and on every calendar-database change. Without the host app the server serves providers.calendar.file instead. GET /api/signals/calendar, polled every 30 s. Never 404; {\"events\": []} when there is no data. SENSITIVE (titles, locations).",
+  "type": "object",
+  "properties": {
+    "events": {
+      "type": "array",
+      "description": "Events, oldest start first.",
+      "items": {
+        "type": "object",
+        "description": "One event occurrence.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Event title ('' if untitled)."
+          },
+          "start": {
+            "type": "string",
+            "description": "Start, ISO 8601 UTC ('2026-11-04T09:00:00Z').",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "description": "End, ISO 8601 UTC. For all-day events this is the last second of the day in local time.",
+            "format": "date-time"
+          },
+          "allDay": {
+            "type": "boolean",
+            "description": "True for all-day events."
+          },
+          "calendar": {
+            "type": "string",
+            "description": "Name of the calendar the event belongs to."
+          },
+          "color": {
+            "type": "string",
+            "description": "Calendar colour as #rrggbb.",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "location": {
+            "type": "string",
+            "description": "Free-text location ('' if none)."
+          },
+          "status": {
+            "type": "string",
+            "description": "Availability: 'free' or 'busy' (EventKit availability; anything but free is busy).",
+            "enum": [
+              "busy",
+              "free"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "start",
+          "end",
+          "allDay"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "ts": {
+      "type": "number",
+      "description": "When the host app wrote the file. Unix time in seconds (float). Absent in the empty fallback."
+    }
+  },
+  "required": [
+    "events"
+  ],
+  "additionalProperties": true
+}

@@ -1,0 +1,36 @@
+# Orbit Desktop
+
+> A live, pluggable macOS wallpaper: a real night sky plus widgets (clock, weather, system stats, now playing,
+> schedule, …). Every widget is a sandboxed, network-less plugin folder (widget.yaml + widget.js + style.css, no
+> build step) that receives only the data "signals" it declares. A Swift host app shows it on the desktop and
+> provides the data; a GUI editor places widgets.
+
+Start here to build a widget: AGENTS.md (steps and rules), then docs/widgets.md (the reference).
+
+## Widget development
+- [AGENTS.md](AGENTS.md): step-by-step for AI agents, hard rules, definition of done
+- [docs/widgets.md](docs/widgets.md): guide and reference (manifest, code, look, signals, actions, backgrounds)
+- [runtime/sdk/orbit-sdk.d.ts](runtime/sdk/orbit-sdk.d.ts): complete SDK types (Orbit.widget, ctx, Orbit.module, Orbit.ui)
+- [schemas/widget.schema.json](schemas/widget.schema.json): JSON Schema of widget.yaml
+- [schemas/signals/index.json](schemas/signals/index.json): all signals (interval, provider, sensitivity)
+- [schemas/signals/](schemas/signals/): one JSON Schema per signal payload
+- [examples/mock/all.json](examples/mock/all.json): sample payloads for every signal (no personal data)
+- [tools/new-widget.py](tools/new-widget.py): scaffold a widget
+- [tools/dev-widget.py](tools/dev-widget.py): preview one widget with sample data / take a screenshot
+- [tools/validate.py](tools/validate.py): validator (must print OK)
+
+## Examples
+- [widgets/load](widgets/load): rows with sparklines
+- [widgets/weather](widgets/weather): current + hourly + daily
+- [widgets/mac](widgets/mac): tiles with meters
+- [widgets/week](widgets/week): agenda list
+- [widgets/power](widgets/power): big number, chips, warnings
+- [widgets/now-playing](widgets/now-playing): buttons that request host actions
+- [widgets/starfield](widgets/starfield): a background plugin
+
+## Platform
+- [README.md](README.md): what it is, install
+- [docs/configuration.md](docs/configuration.md): layout.yaml, zones, settings.json
+- [docs/provider-api.md](docs/provider-api.md): the host ↔ runtime HTTP API
+- [docs/security.md](docs/security.md): sandbox and threat model
+- [host/app/README.md](host/app/README.md): the macOS host app

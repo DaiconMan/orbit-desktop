@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/launches.schema.json",
+  "title": "launches signal",
+  "description": "Next 5 rocket launches from The Space Devs Launch Library 2 (free tier), refreshed every 3 h and cached across restarts. GET /api/signals/launches, polled every 30 min; 404 unless providers.launches.enabled (opt-in network); null until the first fetch. A launch that already happened can stay in the list until the next refresh. Not sensitive.",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "description": "Launches by NET.",
+      "items": {
+        "type": "object",
+        "description": "A launch.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "'Rocket | Payload'."
+          },
+          "net": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "No-Earlier-Than time, ISO 8601 UTC, or null.",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "LL2 status abbreviation: Go, TBD, TBC, Success, Failure, Hold, In Flight, Partial Failure …"
+          },
+          "provider": {
+            "type": "string",
+            "description": "Launch service provider name."
+          },
+          "location": {
+            "type": "string",
+            "description": "Launch site / location name."
+          }
+        },
+        "required": [
+          "name",
+          "net",
+          "status",
+          "provider",
+          "location"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "at": {
+      "type": "number",
+      "description": "When it was fetched. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "items",
+    "at"
+  ],
+  "additionalProperties": true
+}

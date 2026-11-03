@@ -1,0 +1,18 @@
+{
+  "eew": null,
+  "tsunami": null,
+  "ws": {
+    "connected": true,
+    "since": 1793777400.0,
+    "msgs": 3,
+    "last": 1793783100.0
+  },
+  "pref": {
+    "names": [
+      "東京都"
+    ],
+    "src": "gsi"
+  },
+  "eewEnabled": true,
+  "ts": 1793784588.0
+}

@@ -1,0 +1,16 @@
+{
+  "ac": false,
+  "batt": 76,
+  "batt_state": "discharging",
+  "batt_left": "5:42",
+  "tm_running": false,
+  "tm_pct": null,
+  "tm_last": 1793773800.0,
+  "disk_total": 494384795648,
+  "disk_free": 201863462912,
+  "active": {
+    "date": "2026-11-04",
+    "minutes": 87,
+    "idle": 4
+  }
+}

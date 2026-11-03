@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/location.schema.json",
+  "title": "location signal",
+  "description": "Observer location. GET /api/signals/location, polled every 60 s. From providers.location: 'fixed' (config, the default), 'corelocation' (an external CLI) or 'ip' (ipinfo.io, opt-in: sends the public IP). Re-resolved every 30 min (daily when fixed). null very early at start-up. SENSITIVE.",
+  "type": "object",
+  "properties": {
+    "lat": {
+      "type": "number",
+      "description": "Latitude, degrees (+N).",
+      "minimum": -90,
+      "maximum": 90
+    },
+    "lon": {
+      "type": "number",
+      "description": "Longitude, degrees (+E).",
+      "minimum": -180,
+      "maximum": 180
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name, upper case by convention ('GREENWICH · LONDON')."
+    },
+    "source": {
+      "type": "string",
+      "description": "How it was obtained.",
+      "enum": [
+        "config",
+        "corelocation",
+        "ip"
+      ]
+    }
+  },
+  "required": [
+    "lat",
+    "lon",
+    "name",
+    "source"
+  ],
+  "additionalProperties": true
+}

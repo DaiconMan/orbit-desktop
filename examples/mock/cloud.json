@@ -1,0 +1,21 @@
+{
+  "folders": [
+    {
+      "name": "OneDrive · Example",
+      "used": 3221225472,
+      "files": 412,
+      "total_files": 2810,
+      "partial": false
+    },
+    {
+      "name": "GoogleDrive · example@example.com",
+      "used": 524288000,
+      "files": 37,
+      "total_files": 950,
+      "partial": false
+    }
+  ],
+  "warn_bytes": 5368709120,
+  "disk_free": 201863462912,
+  "at": 1793784000.0
+}

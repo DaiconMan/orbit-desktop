@@ -69,8 +69,10 @@ class State:
 
     def _stamp(self):
         parts = []
-        for p in [self.config_path, oc.USER_SETTINGS] + [os.path.join(r, n, "widget.yaml") for r in (oc.REPO_WIDGETS, oc.USER_WIDGETS)
-                                       if os.path.isdir(r) for n in sorted(os.listdir(r))]:
+        # widget.js / style.css too, so editing a plugin reloads the desktop (handy while developing)
+        for p in [self.config_path, oc.USER_SETTINGS] + [os.path.join(r, n, f) for r in (oc.REPO_WIDGETS, oc.USER_WIDGETS)
+                                       if os.path.isdir(r) for n in sorted(os.listdir(r))
+                                       for f in ("widget.yaml", "widget.js", "style.css")]:
             try:
                 st = os.stat(p)
                 parts.append(f"{p}:{st.st_mtime_ns}:{st.st_size}")
@@ -195,7 +197,12 @@ def _clean_override(o):
     return out
 
 
+USE_USER_SETTINGS = True     # --no-user-settings (tools/dev-widget.py): ignore the GUI's settings.json
+
+
 def read_user_settings(warnings):
+    if not USE_USER_SETTINGS:
+        return {}
     try:
         with open(oc.USER_SETTINGS, "r", encoding="utf-8") as f:
             st = json.load(f)
@@ -241,15 +248,8 @@ def apply_user_settings(res, warnings):
     res["hidden"], res["layoutOverrides"] = [], {}
     rz = [z["rotate_seconds"] for z in res.get("zones", {}).values() if z.get("rotate_seconds")]
     res["pageSeconds"] = rz[0] if rz else 30
-    try:
-        with open(oc.USER_SETTINGS, "r", encoding="utf-8") as f:
-            st = json.load(f)
-    except FileNotFoundError:
-        return
-    except (OSError, ValueError) as e:
-        warnings.append(f"settings.json ignored: {e}")
-        return
-    if not isinstance(st, dict):
+    st = read_user_settings([])
+    if not st:
         return
     # legacy position overrides (first editor version); a GUI arrangement supersedes them
     lo = st.get("layout") if isinstance(st.get("layout"), dict) and not res.get("arranged") else {}
@@ -586,9 +586,12 @@ def main(argv=None):
     ap.add_argument("--host-dir", default=None, help="read native host-app provider files from DIR")
     ap.add_argument("--parent-pid", type=int, default=None, help="exit when this process is gone")
     ap.add_argument("--mock", default=None, help="development: JSON file {signal: payload} served instead of providers")
+    ap.add_argument("--no-user-settings", action="store_true", help=f"ignore {oc.USER_SETTINGS} (GUI arrangement, toggles)")
     a = ap.parse_args(argv)
     cfg = a.config or (oc.USER_CONFIG if os.path.isfile(oc.USER_CONFIG) else oc.EXAMPLE_CONFIG)
     cfg = os.path.abspath(os.path.expanduser(cfg))
+    global USE_USER_SETTINGS
+    USE_USER_SETTINGS = not a.no_user_settings
     state = State(cfg, include_user=not a.no_user_plugins)
     MOCK["path"] = os.path.abspath(a.mock) if a.mock else None
     host_dir = os.path.abspath(os.path.expanduser(a.host_dir)) if a.host_dir else None

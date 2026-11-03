@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/kp.schema.json",
+  "title": "kp signal",
+  "description": "Planetary K-index (geomagnetic activity) from NOAA SWPC, 3-hourly values, fetched hourly. GET /api/signals/kp, polled every 30 min; 404 unless providers.kp.enabled (opt-in network); null until the first fetch. Not sensitive.",
+  "type": "object",
+  "properties": {
+    "rows": {
+      "type": "array",
+      "description": "The last 24 values (3 days), oldest first, each a [time, kp] pair.",
+      "items": {
+        "type": "array",
+        "description": "[time_tag (UTC 'YYYY-MM-DDTHH:MM:SS', no zone suffix), Kp 0-9].",
+        "prefixItems": [
+          {
+            "type": "string",
+            "description": "Start of the 3-hour slot, UTC."
+          },
+          {
+            "type": "number",
+            "description": "Kp index 0-9 (thirds, e.g. 3.67).",
+            "minimum": 0,
+            "maximum": 9
+          }
+        ],
+        "items": false,
+        "minItems": 2,
+        "maxItems": 2
+      },
+      "maxItems": 24
+    },
+    "at": {
+      "type": "number",
+      "description": "When it was fetched. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "rows",
+    "at"
+  ],
+  "additionalProperties": true
+}

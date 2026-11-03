@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/recent.schema.json",
+  "title": "recent signal",
+  "description": "Recently played tracks: a local history the server records from nowPlaying on each track change (needs providers.now_playing too), persisted in ~/Library/Caches/orbit-desktop. GET /api/signals/recent, polled every 10 s; 404 unless providers.recent.enabled. No network. SENSITIVE (listening history).",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "description": "Newest first, distinct consecutive tracks, at most providers.recent.max_items.",
+      "items": {
+        "type": "object",
+        "description": "A played track.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Track title."
+          },
+          "artist": {
+            "type": "string",
+            "description": "Artist."
+          },
+          "source": {
+            "type": "string",
+            "description": "Player.",
+            "enum": [
+              "music",
+              "spotify"
+            ]
+          },
+          "at": {
+            "type": "number",
+            "description": "When it started playing. Unix time in seconds (float)."
+          }
+        },
+        "required": [
+          "title",
+          "artist",
+          "source",
+          "at"
+        ],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "additionalProperties": true
+}

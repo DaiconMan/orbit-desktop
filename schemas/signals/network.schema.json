@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/network.schema.json",
+  "title": "network signal",
+  "description": "Home/away, Tailscale, NAS (SMB) mounts, ping targets and line speed. GET /api/signals/network, polled every 5 s; the server re-checks every providers.network.interval_seconds. 404 unless providers.network.enabled. SENSITIVE (LAN / Tailscale addresses, share names).",
+  "type": "object",
+  "properties": {
+    "home": {
+      "type": "object",
+      "description": "Whether the Mac is on the home network.",
+      "properties": {
+        "home": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "True inside providers.network.home_subnet or on home_ssid, false outside, null when neither is configured."
+        },
+        "ip": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The LAN IPv4 address used for the decision (first non-loopback, non-Tailscale address), or null."
+        }
+      },
+      "required": [
+        "home",
+        "ip"
+      ],
+      "additionalProperties": true
+    },
+    "tailscale": {
+      "type": "object",
+      "description": "Tailscale state (an interface holding a 100.64.0.0/10 address).",
+      "properties": {
+        "up": {
+          "type": "boolean",
+          "description": "True when a Tailscale address exists."
+        },
+        "ip": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The Tailscale IPv4 address or null."
+        }
+      },
+      "required": [
+        "up",
+        "ip"
+      ],
+      "additionalProperties": true
+    },
+    "mounts": {
+      "type": "object",
+      "description": "providers.network.mounts share name -> currently mounted (smbfs).",
+      "additionalProperties": {
+        "type": "boolean",
+        "description": "Mounted."
+      }
+    },
+    "mountable": {
+      "type": "object",
+      "description": "Share name -> the server remembers its smb:// URL, so the host app's `mount` action can mount it again.",
+      "additionalProperties": {
+        "type": "boolean",
+        "description": "Mountable by a click."
+      }
+    },
+    "ping": {
+      "type": "object",
+      "description": "Same as system.ping: target name -> ms or null (unreachable).",
+      "additionalProperties": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "description": "ms, null = unreachable.",
+        "minimum": 0
+      }
+    },
+    "speed": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Same as system.speed: last speed test or null.",
+      "properties": {
+        "dl": {
+          "type": "number",
+          "description": "Download, Mbps.",
+          "minimum": 0
+        },
+        "ul": {
+          "type": "number",
+          "description": "Upload, Mbps.",
+          "minimum": 0
+        },
+        "at": {
+          "type": "number",
+          "description": "When. Unix time in seconds (float)."
+        }
+      },
+      "required": [
+        "dl",
+        "ul",
+        "at"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "home",
+    "tailscale",
+    "mounts",
+    "mountable",
+    "ping",
+    "speed"
+  ],
+  "additionalProperties": true
+}

@@ -1,0 +1,28 @@
+{
+  "review": 1,
+  "review_items": [
+    {
+      "title": "feat: add dark mode toggle",
+      "repo": "app"
+    }
+  ],
+  "mine": [
+    {
+      "title": "fix(api): handle empty responses",
+      "repo": "app",
+      "ci": "SUCCESS"
+    },
+    {
+      "title": "chore: bump dependencies",
+      "repo": "website",
+      "ci": "FAILURE"
+    },
+    {
+      "title": "docs: explain the config file",
+      "repo": "app",
+      "ci": null
+    }
+  ],
+  "failing": 1,
+  "at": 1793784400.0
+}

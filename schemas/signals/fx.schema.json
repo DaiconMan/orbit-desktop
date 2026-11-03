@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/fx.schema.json",
+  "title": "fx signal",
+  "description": "Exchange rate from Frankfurter (ECB reference rates), fetched hourly; ECB publishes once per working day. GET /api/signals/fx, polled every 30 min; 404 unless providers.fx.enabled (opt-in network); null until the first fetch. Persisted across restarts. Not sensitive.",
+  "type": "object",
+  "properties": {
+    "rate": {
+      "type": "number",
+      "description": "Units of `quote` per 1 `base` (e.g. JPY per USD).",
+      "exclusiveMinimum": 0
+    },
+    "prev": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "The last DIFFERENT rate seen (for an up/down arrow), or null if none yet."
+    },
+    "date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "ECB reference date 'YYYY-MM-DD' of `rate`."
+    },
+    "at": {
+      "type": "number",
+      "description": "When it was fetched. Unix time in seconds (float)."
+    },
+    "base": {
+      "type": "string",
+      "description": "Base currency, ISO 4217 upper case.",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "quote": {
+      "type": "string",
+      "description": "Quote currency, ISO 4217 upper case.",
+      "pattern": "^[A-Z]{3}$"
+    }
+  },
+  "required": [
+    "rate",
+    "prev",
+    "at",
+    "base",
+    "quote"
+  ],
+  "additionalProperties": true
+}

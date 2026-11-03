@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://orbit-desktop.dev/schemas/signals/github.schema.json",
+  "title": "github signal",
+  "description": "GitHub review requests and the gh user's own open PRs with CI state (gh api graphql), refreshed every 10 min. GET /api/signals/github, polled every 5 min; 404 unless providers.github.enabled (opt-in, uses your gh login); null until the first fetch. SENSITIVE (repo names, PR titles).",
+  "type": "object",
+  "properties": {
+    "review": {
+      "type": "integer",
+      "description": "Number of open PRs requesting your review.",
+      "minimum": 0
+    },
+    "review_items": {
+      "type": "array",
+      "description": "Up to 10 of them.",
+      "items": {
+        "type": "object",
+        "description": "A PR awaiting your review.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "PR title."
+          },
+          "repo": {
+            "type": "string",
+            "description": "Repository name (without owner)."
+          }
+        },
+        "required": [
+          "title",
+          "repo"
+        ],
+        "additionalProperties": true
+      },
+      "maxItems": 10
+    },
+    "mine": {
+      "type": "array",
+      "description": "Your open PRs (up to 20).",
+      "items": {
+        "type": "object",
+        "description": "One of your PRs.",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "PR title."
+          },
+          "repo": {
+            "type": "string",
+            "description": "Repository name (without owner)."
+          },
+          "ci": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Status-check rollup of the PR's last commit, or null when it has no checks.",
+            "enum": [
+              "SUCCESS",
+              "FAILURE",
+              "ERROR",
+              "PENDING",
+              "EXPECTED",
+              null
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "repo",
+          "ci"
+        ],
+        "additionalProperties": true
+      },
+      "maxItems": 20
+    },
+    "failing": {
+      "type": "integer",
+      "description": "How many of `mine` have ci FAILURE or ERROR.",
+      "minimum": 0
+    },
+    "at": {
+      "type": "number",
+      "description": "When it was fetched. Unix time in seconds (float)."
+    }
+  },
+  "required": [
+    "review",
+    "review_items",
+    "mine",
+    "failing",
+    "at"
+  ],
+  "additionalProperties": true
+}
