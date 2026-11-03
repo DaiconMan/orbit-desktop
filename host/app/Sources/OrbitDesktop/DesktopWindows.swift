@@ -1,10 +1,29 @@
 import AppKit
 import WebKit
 
+/// Borderless windows can't become key by default; the HUD layout editor needs keyboard (Esc / Enter / arrows).
+final class DesktopWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+}
+
+/// Receives `window.webkit.messageHandlers.orbit.postMessage(...)` from the runtime page (HUD layout editor).
+/// Weak proxy so the user content controller doesn't retain DesktopWindows.
+private final class OrbitMessageProxy: NSObject, WKScriptMessageHandler {
+    weak var target: DesktopWindows?
+    init(_ t: DesktopWindows) { target = t }
+    func userContentController(_ c: WKUserContentController, didReceive message: WKScriptMessage) {
+        target?.received(message)
+    }
+}
+
 /// One borderless, click-through window per screen at desktop level (below the Finder icons),
 /// on every Space, each showing the runtime page.
 final class DesktopWindows: NSObject, WKNavigationDelegate {
     private var windows: [NSWindow] = []
+    private(set) var editing = false
+    /// HUD editor asked to save: (layout overrides, hidden plugin ids)
+    var onSaveLayout: (([String: Any], [String]) -> Void)?
+    var onEditingChanged: ((Bool) -> Void)?
     private var rebuildWork: DispatchWorkItem?
     private(set) var isShowing = false
     private var ruleList: WKContentRuleList?
@@ -72,7 +91,7 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
     }
 
     private func makeWindow(for screen: NSScreen) -> NSWindow {
-        let w = NSWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        let w = DesktopWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
         w.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)))
         w.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenNone]
         w.ignoresMouseEvents = true
@@ -87,6 +106,7 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
         cfg.mediaTypesRequiringUserActionForPlayback = []  // video backgrounds autoplay
         cfg.suppressesIncrementalRendering = true
         if let ruleList { cfg.userContentController.add(ruleList) }
+        cfg.userContentController.add(OrbitMessageProxy(self), name: "orbit")
         // No WebRTC: STUN/ICE could otherwise bypass connect-src (docs/security.md, residual risk 2).
         // There is no public switch; use the SPI only when it exists.
         let rtc = NSSelectorFromString("_setPeerConnectionEnabled:")
@@ -106,6 +126,46 @@ final class DesktopWindows: NSObject, WKNavigationDelegate {
         w.orderFront(nil)
         wv.load(URLRequest(url: Settings.baseURL))
         return w
+    }
+
+    // MARK: HUD layout editor
+    /// Edit mode: windows float above other windows, take the mouse and the keyboard, and the page shows the editor.
+    func setEditing(_ on: Bool) {
+        guard on != editing else { return }
+        editing = on
+        for w in windows {
+            w.ignoresMouseEvents = !on
+            w.level = on ? .floating : NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)))
+            (w.contentView as? WKWebView)?.evaluateJavaScript("window.orbitEdit && window.orbitEdit(\(on))")
+        }
+        if on {
+            NSApp.activate(ignoringOtherApps: true)
+            (windows.first(where: { $0.screen == NSScreen.main }) ?? windows.first)?.makeKeyAndOrderFront(nil)
+        } else {
+            windows.forEach { $0.orderFront(nil) }
+        }
+        onEditingChanged?(on)
+    }
+
+    func received(_ message: WKScriptMessage) {
+        // only the runtime page itself (main frame, our loopback origin); plugin frames are opaque-origin iframes
+        let o = message.frameInfo.securityOrigin
+        guard message.frameInfo.isMainFrame, o.protocol == "http", o.host == "127.0.0.1", o.port == Settings.port,
+              let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
+        switch type {
+        case "saveLayout":
+            let layout = body["layout"] as? [String: Any] ?? [:]
+            let hidden = (body["hidden"] as? [Any] ?? []).compactMap { $0 as? String }
+            onSaveLayout?(layout, hidden)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.setEditing(false) }
+        case "exitEdit":
+            setEditing(false)
+        default: break
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if editing { webView.evaluateJavaScript("setTimeout(() => window.orbitEdit && window.orbitEdit(true), 1500)") }
     }
 
     // MARK: navigation policy: only our own loopback origin (frames included), nothing else.

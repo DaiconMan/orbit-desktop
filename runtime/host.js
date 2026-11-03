@@ -33,7 +33,7 @@
     return Object.assign({}, theme, { palette: Object.assign({}, palette) });
   }
   function broadcastTheme() {
-    for (const f of frames) if (f.ready) send(f, { type: 'theme', theme: themeMsg(), viewport: viewport() });
+    for (const f of frames) if (f.ready) send(f, { type: 'theme', theme: themeMsg(), viewport: viewport(), scale: f.scale || 1 });
   }
   function paletteFromImage(img) {   // three glow colours sampled from the artwork
     try {
@@ -53,7 +53,8 @@
   /* ------------------------------------------------------------ problems panel */
   function renderProblems() {
     const errs = (cfg ? cfg.errors : []).concat(runtimeErrors);
-    const warns = cfg && (Date.now() - bootAt < 20000 || location.search.includes('debug')) ? cfg.warnings : [];
+    // warnings never sit on the desktop: the host app lists them (menu → 設定の警告を表示…); ?debug shows them here
+    const warns = cfg && location.search.includes('debug') ? cfg.warnings : [];
     const el = $('problems');
     if (!errs.length && !warns.length) { el.hidden = true; return; }
     el.hidden = false; el.classList.toggle('only-warn', !errs.length);
@@ -110,7 +111,7 @@
     if (m.type === 'ready') {
       let assets = {};
       try { assets = await loadAssets(f.id, f.assets); } catch (err) { runtimeErrors.push(`${f.id}: ${err.message}`); renderProblems(); }
-      send(f, Object.assign({ type: 'init', theme: themeMsg(), viewport: viewport(), assets }, f.init));
+      send(f, Object.assign({ type: 'init', theme: themeMsg(), viewport: viewport(), assets, scale: f.scale || 1 }, f.init));
       f.ready = true;
       for (const n of f.needs) if (last[n] !== undefined) send(f, { type: 'signal', name: n, data: last[n] });
     } else if (m.type === 'size' && f.auto) {
@@ -171,13 +172,24 @@
     const host = $('widgets');
     for (const [name, z] of Object.entries(zones || {})) {
       const el = document.createElement('div'); el.className = 'zone'; el.dataset.zone = name;
-      place(el, z); el.style.width = cssLen(z.width); el.style.setProperty('--gap', cssLen(z.gap)); el.style.zIndex = 10;
       const paged = !!z.rotate_seconds;
-      if (paged) { el.classList.add('paged'); el.style.height = z.height === 'auto' ? '40vh' : cssLen(z.height); }
-      el.style.setProperty('--cols', z.columns); el.style.setProperty('--colgap', cssLen(z.column_gap));
+      if (paged) el.classList.add('paged');
+      el.style.setProperty('--cols', z.columns);
       host.appendChild(el);
       zoneEls[name] = { el, z, paged, pages: [], cur: 0, dots: null };
+      styleZone(zoneEls[name]);
     }
+  }
+  // sizes of a zone scale with its `scale` (HUD editor); its widgets get the same scale for their units
+  const scaled = (v, k) => k === 1 ? cssLen(v) : `calc(${cssLen(v)} * ${k})`;
+  function styleZone(Z) {
+    const z = Z.z, k = z.scale || 1, el = Z.el;
+    for (const p of ['left', 'right', 'top', 'bottom', 'transform']) el.style[p] = '';
+    place(el, z); el.style.zIndex = 10;
+    el.style.width = scaled(z.width, k);
+    el.style.setProperty('--gap', scaled(z.gap, k));
+    el.style.setProperty('--colgap', scaled(z.column_gap, k));
+    if (Z.paged) el.style.height = scaled(z.height === 'auto' ? '40vh' : z.height, k);
   }
   function zoneColumn(name, page, column) {
     const Z = zoneEls[name];
@@ -231,16 +243,16 @@
         const Z = zoneEls[w.zone];
         (Z.paged ? zoneColumn(w.zone, w.page, w.column) : Z.el).appendChild(slot);
         const colW = Math.round(slot.getBoundingClientRect().width) || Math.round(innerWidth * .3);
-        const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, zoned: true, auto: { width: false, height: true },
+        const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, zoned: true, zone: w.zone, scale: Z.z.scale || 1, auto: { width: false, height: true },
           init: { settings: w.settings, needs: w.needs, sizing: { width: 'zone', height: 'auto' }, maxWidth: colW } }, slot);
         f.iframe.style.width = '100%'; f.iframe.style.height = '10px';
         continue;
       }
       place(slot, w.position); host.appendChild(slot);
       const auto = { width: w.position.width === 'auto', height: w.position.height === 'auto' };
-      const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, auto,
+      const f = makeFrame({ id: w.use, kind: 'widget', needs: w.needs, assets: w.assets, slot, auto, scale: w.scale || 1, w,
         init: { settings: w.settings, needs: w.needs, sizing: { width: w.position.width, height: w.position.height }, maxWidth: Math.round(innerWidth * .9) } }, slot);
-      f.iframe.style.width = auto.width ? Math.round(innerWidth * .9) + 'px' : cssLen(w.position.width);
+      f.iframe.style.width = auto.width ? Math.round(innerWidth * .9) + 'px' : scaled(w.position.width, w.scale || 1);
       f.iframe.style.height = auto.height ? '10px' : cssLen(w.position.height);
       if (!auto.width && !auto.height) slot.classList.remove('pending');
     }
@@ -332,6 +344,187 @@
     const tick = () => $('widgets').classList.toggle('calm', new Date().getHours() < 6);
     tick(); setInterval(tick, 60000);
   }
+
+  /* ------------------------------------------------------------ HUD layout editor
+     Entered from the host app's menu (window.orbitEdit(true)): every zone and fixed widget gets a frame that
+     can be dragged (move), resized from the corner (scale), and, for zones, widened / heightened from the edges.
+     Widgets can be hidden. "保存" sends the overrides to the host app (WKScriptMessageHandler `orbit`), which
+     writes ~/.config/orbit-desktop/settings.json; layout.yaml itself is never rewritten. */
+  const ED = { on: false, items: [], hidden: new Set(), reset: new Set(), changed: new Set(), grid: true, sel: null, layer: null };
+  const vw = px => px / innerWidth * 100, vh = px => px / innerHeight * 100;
+  const snapV = (v, step) => Math.round(v / step) * step;
+  function offsetsFor(anchor, r) {       // element rect -> {x, y} offsets for its anchor (vw / vh strings)
+    const [v, h] = anchor === 'center' ? ['center', 'center'] : anchor.split('-');
+    const W = innerWidth, H = innerHeight;
+    const x = h === 'left' ? r.left : h === 'right' ? W - r.right : r.left + r.width / 2 - W / 2;
+    const y = v === 'top' ? r.top : v === 'bottom' ? H - r.bottom : r.top + r.height / 2 - H / 2;
+    return { x: vw(x).toFixed(2) + 'vw', y: vh(y).toFixed(2) + 'vh' };
+  }
+  function edItems() {
+    const items = [];
+    const byZone = {};
+    for (const w of cfg.widgets) if (w.zone) (byZone[w.zone] = byZone[w.zone] || []).push(w);
+    for (const [name, Z] of Object.entries(zoneEls)) {
+      const uses = [...new Map((byZone[name] || []).map(w => [w.use, w.name])).entries()];
+      items.push({ key: 'zone:' + name, kind: 'zone', Z, el: Z.el, label: name, uses,
+        spec: { anchor: Z.z.anchor, x: Z.z.x, y: Z.z.y, width: Z.z.width, height: Z.z.height, scale: Z.z.scale || 1 }, base: Z.z.base });
+    }
+    for (const f of frames) if (f.kind === 'widget' && f.w && !f.dead && f.w.dim !== false) {   // dim:false = overlays (alerts)
+      const p = f.w.position;
+      items.push({ key: 'widget:' + f.id, kind: 'widget', f, el: f.slot, label: f.w.name || f.id, use: f.id,
+        spec: { anchor: p.anchor, x: p.x, y: p.y, width: p.width, scale: f.scale || 1 }, base: f.w.base });
+    }
+    return items;
+  }
+  function edApply(it) {
+    const sp = it.spec;
+    if (it.kind === 'zone') {
+      Object.assign(it.Z.z, sp); styleZone(it.Z);
+      for (const f of frames) if (f.zone === it.Z.el.dataset.zone) { f.scale = sp.scale; if (f.ready) send(f, { type: 'theme', theme: themeMsg(), viewport: viewport(), scale: f.scale }); }
+    } else {
+      const s = it.el.style; for (const p of ['left', 'right', 'top', 'bottom', 'transform']) s[p] = '';
+      place(it.el, sp);
+      it.f.scale = sp.scale;
+      if (sp.width !== 'auto') it.f.iframe.style.width = scaled(sp.width, sp.scale);
+      if (it.f.ready) send(it.f, { type: 'theme', theme: themeMsg(), viewport: viewport(), scale: it.f.scale });
+    }
+  }
+  function edSync() {
+    for (const it of ED.items) {
+      const r = it.el.getBoundingClientRect(), b = it.box;
+      const w = Math.max(r.width, 140), h = Math.max(r.height, 44);
+      Object.assign(b.style, { left: r.left + 'px', top: r.top + 'px', width: w + 'px', height: h + 'px' });
+      b.querySelector('.ed-size').textContent = Math.round(it.spec.scale * 100) + '%';
+      b.classList.toggle('hidden', !!it.use && ED.hidden.has(it.use));
+      b.classList.toggle('sel', ED.sel === it);
+    }
+  }
+  function edDrag(e, it, mode) {
+    e.preventDefault(); e.stopPropagation();
+    ED.sel = it;
+    const r0 = it.el.getBoundingClientRect(), x0 = e.clientX, y0 = e.clientY, sp0 = Object.assign({}, it.spec);
+    const W0 = r0.width || 140, H0 = r0.height || 44;
+    const move = ev => {
+      const dx = ev.clientX - x0, dy = ev.clientY - y0, g = ED.grid && !ev.altKey;
+      if (mode === 'move') {
+        let left = r0.left + dx, top = r0.top + dy;
+        if (g) { left = snapV(vw(left), .5) / 100 * innerWidth; top = snapV(vh(top), .5) / 100 * innerHeight; }
+        const r = { left, top, width: r0.width, height: r0.height, right: left + r0.width, bottom: top + r0.height };
+        Object.assign(it.spec, offsetsFor(it.spec.anchor, r));
+      } else if (mode === 'scale') {
+        let k = sp0.scale * Math.max(.2, (W0 + dx) / W0);
+        k = Math.min(2.5, Math.max(.5, g ? snapV(k, .05) : k));
+        it.spec.scale = +k.toFixed(3);
+      } else if (mode === 'width') {
+        let v = vw(Math.max(60, W0 + dx)) / sp0.scale; if (g) v = snapV(v, .5);
+        it.spec.width = v.toFixed(1) + 'vw';
+      } else if (mode === 'height') {
+        let v = vh(Math.max(40, H0 + dy)) / sp0.scale; if (g) v = snapV(v, .5);
+        it.spec.height = v.toFixed(1) + 'vh';
+      }
+      ED.changed.add(it.key); ED.reset.delete(it.key);
+      edApply(it); edSync();
+    };
+    const up = () => { removeEventListener('pointermove', move); removeEventListener('pointerup', up); edSync(); };
+    addEventListener('pointermove', move); addEventListener('pointerup', up);
+  }
+  function edToggleHide(use) {
+    if (ED.hidden.has(use)) ED.hidden.delete(use); else ED.hidden.add(use);
+    for (const f of frames) if (f.id === use && f.slot) f.slot.classList.toggle('ed-hidden', ED.hidden.has(use));
+    edRender();
+  }
+  function edRender() {
+    const L = ED.layer;
+    L.querySelectorAll('.ed-box').forEach(b => b.remove());
+    for (const it of ED.items) {
+      const b = document.createElement('div'); b.className = 'ed-box ' + it.kind; it.box = b;
+      const head = document.createElement('div'); head.className = 'ed-head';
+      const name = document.createElement('b'); name.textContent = it.kind === 'zone' ? 'ZONE ' + it.label.toUpperCase() : it.label;
+      const size = document.createElement('span'); size.className = 'ed-size';
+      head.append(name, size);
+      const tools = document.createElement('span'); tools.className = 'ed-tools';
+      const rs = document.createElement('i'); rs.textContent = '↺'; rs.title = '元に戻す';
+      rs.onpointerdown = ev => { ev.stopPropagation(); it.spec = Object.assign({}, it.base); ED.reset.add(it.key); ED.changed.delete(it.key); edApply(it); edSync(); };
+      tools.appendChild(rs);
+      if (it.use) {
+        const x = document.createElement('i'); x.textContent = ED.hidden.has(it.use) ? '表示' : '×'; x.title = '表示 / 非表示';
+        x.onpointerdown = ev => { ev.stopPropagation(); edToggleHide(it.use); };
+        tools.appendChild(x);
+      }
+      head.appendChild(tools);
+      b.appendChild(head);
+      if (it.kind === 'zone') {            // the zone's modules: click to hide / show
+        const list = document.createElement('div'); list.className = 'ed-mods';
+        for (const [use, label] of it.uses) {
+          const c = document.createElement('span'); c.textContent = label || use;
+          c.classList.toggle('off', ED.hidden.has(use));
+          c.onpointerdown = ev => { ev.stopPropagation(); edToggleHide(use); };
+          list.appendChild(c);
+        }
+        b.appendChild(list);
+      }
+      b.onpointerdown = ev => edDrag(ev, it, 'move');
+      const hs = [['ed-h-scale', 'scale']];
+      if (it.kind === 'zone') { hs.push(['ed-h-width', 'width']); if (it.Z.paged) hs.push(['ed-h-height', 'height']); }
+      for (const [cls, mode] of hs) { const h = document.createElement('div'); h.className = 'ed-h ' + cls; h.onpointerdown = ev => edDrag(ev, it, mode); b.appendChild(h); }
+      L.appendChild(b);
+    }
+    // hidden modules that are not on screen at all (hidden before): chips to bring them back
+    const tray = L.querySelector('.ed-tray'); tray.textContent = '';
+    const offscreen = [...ED.hidden].filter(u => !frames.some(f => f.id === u));
+    if (offscreen.length) {
+      const t = document.createElement('span'); t.textContent = '非表示:'; tray.appendChild(t);
+      for (const u of offscreen) { const c = document.createElement('span'); c.className = 'chip'; c.textContent = u; c.onclick = () => { ED.hidden.delete(u); edRender(); }; tray.appendChild(c); }
+    }
+    edSync();
+  }
+  function edToHost(msg) {
+    try { window.webkit.messageHandlers.orbit.postMessage(msg); return true; } catch (e) { return false; }
+  }
+  function edSave() {
+    const layout = Object.assign({}, cfg.layoutOverrides || {});
+    for (const k of ED.reset) delete layout[k];
+    for (const it of ED.items) if (ED.changed.has(it.key)) {
+      const o = {}, sp = it.spec, base = it.base || {};
+      for (const k of ['anchor', 'x', 'y', 'width', 'height', 'scale']) if (sp[k] !== undefined && sp[k] !== null && (k === 'scale' || String(sp[k]) !== String(base[k]))) o[k] = sp[k];
+      if (o.scale === 1 && Object.keys(o).length === 1) delete layout[it.key]; else layout[it.key] = o;
+    }
+    if (!edToHost({ type: 'saveLayout', layout, hidden: [...ED.hidden].sort() })) alert('保存できません（Orbit Desktop.app の中でのみ保存できます）');
+  }
+  function orbitEdit(on) {
+    if (on === ED.on || !cfg) return;
+    ED.on = on;
+    document.body.classList.toggle('editing', on);
+    if (!on) { location.reload(); return; }
+    ED.hidden = new Set(cfg.hidden || []); ED.changed.clear(); ED.reset.clear(); ED.sel = null;
+    const L = ED.layer = document.createElement('div'); L.id = 'editor'; L.classList.toggle('grid', ED.grid);
+    const bar = document.createElement('div'); bar.className = 'ed-bar';
+    bar.innerHTML = '<b>HUD レイアウト</b><span>ドラッグで移動 · 右下でサイズ · ゾーンは右端で幅 / 下端で高さ · ⌥ でグリッド無視</span>';
+    const btn = (label, fn, cls = '') => { const x = document.createElement('button'); x.textContent = label; x.className = cls; x.onclick = fn; bar.appendChild(x); return x; };
+    btn('グリッド', () => { ED.grid = !ED.grid; L.classList.toggle('grid', ED.grid); });
+    btn('すべて初期配置に', () => { for (const it of ED.items) { it.spec = Object.assign({}, it.base); ED.reset.add(it.key); ED.changed.delete(it.key); edApply(it); } edSync(); });
+    btn('キャンセル', () => { if (!edToHost({ type: 'exitEdit' })) orbitEdit(false); });
+    btn('保存', edSave, 'primary');
+    const tray = document.createElement('div'); tray.className = 'ed-tray';
+    L.append(bar, tray);
+    document.body.appendChild(L);
+    ED.items = edItems();
+    edRender();
+    ED.timer = setInterval(edSync, 500);   // follow content that resizes while editing
+  }
+  window.orbitEdit = orbitEdit;
+  addEventListener('keydown', e => {
+    if (!ED.on) return;
+    if (e.key === 'Escape') { if (!edToHost({ type: 'exitEdit' })) orbitEdit(false); }
+    else if (e.key === 'Enter') edSave();
+    else if (ED.sel && e.key.startsWith('Arrow')) {        // nudge the selected element by 0.1 vw / vh
+      const it = ED.sel, r = it.el.getBoundingClientRect(), d = e.shiftKey ? 1 : .1;
+      const dx = e.key === 'ArrowLeft' ? -d : e.key === 'ArrowRight' ? d : 0, dy = e.key === 'ArrowUp' ? -d : e.key === 'ArrowDown' ? d : 0;
+      const left = r.left + dx * innerWidth / 100, top = r.top + dy * innerHeight / 100;
+      Object.assign(it.spec, offsetsFor(it.spec.anchor, { left, top, width: r.width, height: r.height, right: left + r.width, bottom: top + r.height }));
+      ED.changed.add(it.key); edApply(it); edSync(); e.preventDefault();
+    }
+  });
 
   /* ------------------------------------------------------------ boot */
   async function boot() {

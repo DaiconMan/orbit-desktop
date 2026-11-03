@@ -21,7 +21,7 @@
   const ctx = {
     id: PLUGIN.id, kind: PLUGIN.kind, root,
     settings: {}, theme: {}, locale: 'en-US', lang: 'en', hour12: false,
-    viewport: { w: innerWidth, h: innerHeight }, assets: {}, signals: {},
+    viewport: { w: innerWidth, h: innerHeight }, scale: 1, assets: {}, signals: {},
     esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     /** "r,g,b" triplet of a palette slot ('a' | 'b' | 'c') - usable as rgb(${...}) */
     rgb: k => (ctx.theme.palette || {})[k] || '255,255,255',
@@ -40,8 +40,9 @@
     if (t.text_color) s.setProperty('--fg', t.text_color);
     for (const k of ['a', 'b', 'c']) if (p[k]) s.setProperty('--' + k, p[k]);
     // vh / vw of the HOST screen (inside an iframe the native units refer to the frame)
-    s.setProperty('--vh', (ctx.viewport.h / 100) + 'px');
-    s.setProperty('--vw', (ctx.viewport.w / 100) + 'px');
+    // ctx.scale: per-widget size set in the HUD layout editor; scaling the units keeps text crisp
+    s.setProperty('--vh', (ctx.viewport.h / 100 * ctx.scale) + 'px');
+    s.setProperty('--vw', (ctx.viewport.w / 100 * ctx.scale) + 'px');
     ctx.locale = t.locale || 'en-US'; ctx.lang = ctx.locale.slice(0, 2).toLowerCase(); ctx.hour12 = !!t.hour12;
     document.documentElement.lang = ctx.locale;
   }
@@ -146,6 +147,7 @@
       initMsg = m;
       ctx.settings = Object.freeze(Object.assign({}, m.settings));
       ctx.theme = m.theme || {}; ctx.viewport = m.viewport || ctx.viewport; ctx.assets = m.assets || {};
+      if (+m.scale > 0) ctx.scale = +m.scale;
       sizing = m.sizing || sizing;
       if (sizing.width !== 'auto') root.classList.add('fixed-w');   // 'zone' (width of the zone column) or a CSS length
       if (m.maxWidth) document.documentElement.style.setProperty('--max-w', m.maxWidth + 'px');
@@ -156,6 +158,7 @@
       if (started) deliver(m.name, m.data);
     } else if (m.type === 'theme') {
       ctx.theme = m.theme || ctx.theme; if (m.viewport) ctx.viewport = m.viewport;
+      if (+m.scale > 0) ctx.scale = +m.scale;
       applyTheme(); if (started && def.theme) safe(def.theme, ctx);
       reportSize();
     }

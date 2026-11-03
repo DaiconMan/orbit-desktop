@@ -28,6 +28,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         system.start()
         startEEW()
         server.onStateChange = { [weak self] st in self?.serverStateChanged(st) }
+        desktop.onSaveLayout = { [weak self] layout, hidden in self?.saveLayout(layout, hidden: hidden) }
+        desktop.onEditingChanged = { [weak self] on in self?.editItem.state = on ? .on : .off }
         server.start()
         // the runtime page polls the config itself; we only need it to decide which providers run
         pollTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.pollConfig() }
@@ -135,7 +137,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         m.addItem(.separator())
         m.addItem(item("Reload Wallpaper", #selector(reload), "r"))
         m.addItem(item("壁紙の設定…", #selector(openSettings), ","))
+        editItem = item("レイアウトを編集（HUD）", #selector(toggleEditLayout), "e")
+        m.addItem(editItem)
         m.addItem(item("Edit layout.yaml…", #selector(editLayout), ""))
+        m.addItem(item("設定の警告を表示…", #selector(showWarnings), ""))
         m.addItem(item("Open Preview in Browser", #selector(openPreview), ""))
         m.addItem(item("緊急地震速報のテスト表示", #selector(testEEW), ""))
         m.addItem(.separator())
@@ -188,7 +193,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { try? FileManager.default.removeItem(at: p) }
     }
 
-    @objc private func editLayout() {
+    private var editItem: NSMenuItem!
+
+    @objc private func toggleEditLayout() { desktop.setEditing(!desktop.editing) }
+
+    /// HUD editor saved: overrides go to settings.json `layout`, hidden modules to `wallpaper.hidden`.
+    private func saveLayout(_ layout: [String: Any], hidden: [String]) {
+        var raw = AppSettings.readRaw()
+        raw["layout"] = layout
+        var wp = raw["wallpaper"] as? [String: Any] ?? [:]
+        wp["hidden"] = hidden
+        raw["wallpaper"] = wp
+        if let err = AppSettings.writeRaw(raw) { NSLog("[orbit] saving layout failed: \(err)") }
+    }
+
+    /// Config warnings (e.g. personal / unofficial providers enabled) are listed here instead of on the desktop.
+    @objc private func showWarnings() {
+        OrbitAPI.get("/api/config") { obj in
+            let cfg = obj as? [String: Any]
+            let warns = (cfg?["warnings"] as? [String]) ?? []
+            let errs = (cfg?["errors"] as? [String]) ?? []
+            let a = NSAlert()
+            a.messageText = errs.isEmpty && warns.isEmpty ? "設定に警告はありません" : "設定の警告"
+            a.informativeText = (errs.map { "⚠︎ " + $0 } + warns.map { "・" + $0 }).joined(separator: "\n\n")
+            NSApp.activate(ignoringOtherApps: true)
+            a.runModal()
+        }
+    }
+
+        @objc private func editLayout() {
         let fm = FileManager.default
         if !fm.fileExists(atPath: Paths.userConfig.path) {
             // first edit: start the user's own copy from the example, then make the server use it
@@ -196,7 +229,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             try? fm.copyItem(at: Paths.exampleConfig, to: Paths.userConfig)
             server.restart()
         }
-        NSWorkspace.shared.open(Paths.userConfig)
+        openInTextEditor(Paths.userConfig)
+    }
+
+    /// Open a text file in a text editor, not in an IDE that happens to own the extension (Xcode claims .yaml).
+    /// Order: `defaults write io.github.daiconman.orbit-desktop editor <bundle id or app path>`, the default app
+    /// for the file unless it is Xcode, a known editor that is installed, then TextEdit.
+    private func openInTextEditor(_ file: URL) {
+        let ws = NSWorkspace.shared
+        var candidates: [URL] = []
+        if let pref = UserDefaults.standard.string(forKey: "editor") {
+            if pref.hasPrefix("/") { candidates.append(URL(fileURLWithPath: pref)) }
+            else if let u = ws.urlForApplication(withBundleIdentifier: pref) { candidates.append(u) }
+        }
+        if let def = ws.urlForApplication(toOpen: file), Bundle(url: def)?.bundleIdentifier != "com.apple.dt.Xcode" {
+            candidates.append(def)
+        }
+        for id in ["com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92", "dev.zed.Zed", "com.sublimetext.4",
+                   "com.barebones.bbedit", "com.coteditor.CotEditor", "com.apple.TextEdit"] {
+            if let u = ws.urlForApplication(withBundleIdentifier: id) { candidates.append(u) }
+        }
+        guard let app = candidates.first else { ws.open(file); return }
+        ws.open([file], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
     }
 
     @objc private func openPreview() {

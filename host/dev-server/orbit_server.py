@@ -119,6 +119,7 @@ class State:
             "zones": r.get("zones", {}),
             "modules": r.get("modules", []),
             "hidden": r.get("hidden", []),
+            "layoutOverrides": r.get("layoutOverrides", {}),
             "signals": signals,
             "providers": {"weather": prov["weather"]["enabled"], "nowPlaying": prov["now_playing"]["enabled"],
                           "claudeUsage": prov["claude_usage"]["enabled"], "speedtest": prov["speedtest"]["enabled"],
@@ -147,9 +148,42 @@ def load_mock():
     return MOCK["data"]
 
 
+LAYOUT_KEYS = {"anchor", "x", "y", "width", "height", "scale"}
+
+
+def _clean_override(o):
+    """Validate one HUD-editor override {anchor, x, y, width, height, scale}; drop anything malformed."""
+    out = {}
+    if not isinstance(o, dict):
+        return out
+    for k, v in o.items():
+        if k not in LAYOUT_KEYS:
+            continue
+        if k == "anchor":
+            if v in oc.ANCHORS:
+                out[k] = v
+        elif k == "scale":
+            if isinstance(v, (int, float)) and not isinstance(v, bool) and 0.3 <= v <= 4:
+                out[k] = round(float(v), 3)
+        elif (isinstance(v, (int, float)) and not isinstance(v, bool)) or (isinstance(v, str) and oc.LENGTH_RE.match(v)):
+            out[k] = v
+    return out
+
+
 def apply_user_settings(res, warnings):
-    """Overlay ~/.config/orbit-desktop/settings.json (written by the host app's settings window):
-    wallpaper.hidden drops widgets by plugin id, wallpaper.page_seconds sets every rotating zone's interval."""
+    """Overlay ~/.config/orbit-desktop/settings.json (written by the host app):
+    * wallpaper.hidden: plugin ids to leave out
+    * wallpaper.page_seconds: interval of every rotating zone
+    * layout: HUD-editor overrides, {"zone:<name>" | "widget:<use>": {anchor, x, y, width, height, scale}}
+    The base values from layout.yaml are kept as `base` so the editor can reset an element."""
+    for z in res.get("zones", {}).values():
+        z.setdefault("scale", 1)
+        z["base"] = {k: z.get(k) for k in ("anchor", "x", "y", "width", "height")}
+        z["base"]["scale"] = 1
+    for w in res["widgets"]:
+        w["scale"] = 1
+        w["base"] = dict(w["position"], scale=1)
+    res["hidden"], res["layoutOverrides"] = [], {}
     try:
         with open(oc.USER_SETTINGS, "r", encoding="utf-8") as f:
             st = json.load(f)
@@ -158,8 +192,28 @@ def apply_user_settings(res, warnings):
     except (OSError, ValueError) as e:
         warnings.append(f"settings.json ignored: {e}")
         return
-    res["hidden"] = []
-    wp = st.get("wallpaper") if isinstance(st, dict) else None
+    if not isinstance(st, dict):
+        return
+    lo = st.get("layout") if isinstance(st.get("layout"), dict) else {}
+    for key, o in lo.items():
+        o = _clean_override(o)
+        if not o or not isinstance(key, str):
+            continue
+        kind, _, name = key.partition(":")
+        if kind == "zone" and name in res.get("zones", {}):
+            res["zones"][name].update(o)
+            res["layoutOverrides"][key] = o
+        elif kind == "widget":
+            hit = False
+            for w in res["widgets"]:
+                if w["use"] == name and not w.get("zone"):
+                    if "scale" in o:
+                        w["scale"] = o["scale"]
+                    w["position"].update({k: v for k, v in o.items() if k != "scale"})
+                    hit = True
+            if hit:
+                res["layoutOverrides"][key] = o
+    wp = st.get("wallpaper")
     if not isinstance(wp, dict):
         return
     hidden = {h for h in (wp.get("hidden") or []) if isinstance(h, str)}

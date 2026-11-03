@@ -22,7 +22,7 @@ import time
 import urllib.parse
 import urllib.request
 
-from orbit_config import CACHE_DIR
+from orbit_config import CACHE_DIR, USER_SETTINGS
 from providers_extra import ExtraLoops
 
 UA = "OrbitDesktop/0.1 (local dev server)"
@@ -497,10 +497,28 @@ return "ok"
             self.extra[name] = value
 
     def _host_alerts(self):
-        """EEW / tsunami state written by the host app (host_dir/alerts.json). Stale file -> no alerts."""
-        empty = {"eew": None, "tsunami": None, "ws": None}
+        """EEW / tsunami state written by the host app (host_dir/alerts.json). The app rewrites the file on every
+        change and every second while an alert is active, so an old file means "no active alert"; the
+        connection state (ws, pref) stays valid. eewEnabled comes from settings.json."""
+        empty = {"eew": None, "tsunami": None, "ws": None, "pref": None}
+        en = True
+        try:
+            with open(USER_SETTINGS, "r", encoding="utf-8") as f:
+                en = ((json.load(f).get("eew") or {}).get("enabled", True)) is not False
+        except (OSError, ValueError, AttributeError):
+            pass
+        empty["eewEnabled"] = en
         if not self.host_dir:
             return empty
+        try:
+            j = json.loads(read_small(os.path.join(self.host_dir, "alerts.json"), 512_000) or b"{}")
+            j["eewEnabled"] = en
+            if time.time() - float(j.get("ts", 0)) > 15:
+                j["eew"] = j["tsunami"] = None
+            return j
+        except (ValueError, TypeError, AttributeError):
+            pass
+        return empty
         try:
             j = json.loads(read_small(os.path.join(self.host_dir, "alerts.json"), 512_000) or b"{}")
             if time.time() - float(j.get("ts", 0)) < 15:

@@ -14,6 +14,12 @@ set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/../.." && pwd)
 APP="$HERE/build/Orbit Desktop.app"
+# A certificate named "Orbit Desktop Dev" in the login keychain is used automatically. It doesn't need to be
+# trusted: only its hash goes into the designated requirement, so permission grants survive rebuilds.
+# Create one without Keychain Access:  host/app/make-signing-cert.sh
+if [ -z "${ORBIT_SIGN_IDENTITY:-}" ]; then
+  ORBIT_SIGN_IDENTITY=$(security find-identity -p codesigning 2>/dev/null | awk '/"Orbit Desktop Dev"/ {print $2; exit}')
+fi
 IDENTITY=${ORBIT_SIGN_IDENTITY:--}
 
 cd "$HERE"
